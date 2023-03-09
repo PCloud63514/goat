@@ -1,77 +1,20 @@
 package main
 
-import (
-	"fmt"
-)
-
-type Foo struct {
-}
-
-func (foo *Foo) Hello() {
-	fmt.Println("Hello!")
-}
-
-func (foo *Foo) Handle() {
-	fmt.Println("Foo Handle!")
-	foo.Hello()
-}
-
-func (foo *Foo) Start() {
-	fmt.Println("Foo Start!")
-	foo.Hello()
-}
-
-type Bar struct {
-}
-
-func (bar *Bar) Start() {
-	fmt.Println("Bar Start!")
-}
-
-func (bar *Bar) Stop() {
-	fmt.Println("Bar Stop!")
-}
+import "main/pkg"
 
 func main() {
-	var instances []any = []any{&Foo{}, &Bar{}}
-
-	handlers := GetInstanceByType[Handler](instances)
-	for _, handler := range handlers {
-		handler.Handle()
-	}
-
-	startEventListeners := GetInstanceByType[StartEventListener](instances)
-	for _, eventListener := range startEventListeners {
-		eventListener.Start()
-	}
-
-	stopEventListeners := GetInstanceByType[StopEventListener](instances)
-	for _, eventListener := range stopEventListeners {
-		eventListener.Stop()
-	}
-
-	//GoatApplication().Run()
+	pkg.GoatApplication().Run()
 }
 
-func GetInstanceByType[T any](instances []any) []T {
-	result := []T{}
-
-	for _, instance := range instances {
-		if v, ok := instance.(T); ok {
-			result = append(result, v)
-		}
-	}
-	return result
-}
-
-type Handler interface {
-	Handle()
-}
-
-type StartEventListener interface {
-	Start()
-}
-
-type StopEventListener interface {
-	Stop()
-}
+/*
+Run 동작 시 목표
+- arguments 불러오기
+- environment 불러오기
+- DB 객체 생성 및 연결하기
+- 프로그램 동작에 필요한 인스턴스들 생성 및 등록하기
+- 배치 스케줄러 객체 생성하기
+- 배치 스케줄러에 잡 등록하기
+- router에 RouteHandler 등록하기
+- 기본 포트로 웹 서비스 실행 (router run)
+- 배치 스케줄러 실행하기
+*/
