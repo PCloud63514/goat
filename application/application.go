@@ -17,7 +17,10 @@ func Start() *ApplicationContext {
 	env := newConfigureEnvironment(args)
 	appCtx := newApplicationContext(ctx, args, env)
 	router := gin.Default()
-	if err := router.Run(":8080"); err != nil {
+
+	port := appCtx.GetOrDefaultPropertyString("port", ":8080")
+
+	if err := router.Run(port); err != nil {
 		panic(err)
 	}
 	logServiceStart(appCtx)
