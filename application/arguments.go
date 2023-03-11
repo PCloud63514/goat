@@ -12,9 +12,9 @@ import (
 */
 
 const (
-	FLAG_PROFILE_NAME  = "profile"
-	FLAG_PROFILE_VALUE = "default"
-	FLAG_PROFILE_USAGE = "프로필 속성입니다. 기본 값은 default 입니다."
+	FlagProfileName  = "profile"
+	FlagProfileValue = "default"
+	FlagProfileUsage = "프로필 속성입니다. 기본 값은 default 입니다."
 )
 
 type applicationArguments struct {
@@ -25,7 +25,7 @@ type applicationArguments struct {
 }
 
 func newApplicationArguments(startTime time.Time) *applicationArguments {
-	profileFlag := flag.String(FLAG_PROFILE_NAME, FLAG_PROFILE_VALUE, "프로필")
+	profileFlag := flag.String(FlagProfileName, FlagProfileValue, FlagProfileUsage)
 	flag.Parse()
 	_options := make(map[string]string)
 	flag.Visit(func(f *flag.Flag) {

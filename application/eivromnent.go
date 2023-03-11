@@ -98,7 +98,7 @@ func makePropertySource(arguments *applicationArguments) map[string]interface{} 
 	viper.SetConfigType("env")
 	viper.SetConfigName("default")
 	viper.AutomaticEnv()
-	if FLAG_PROFILE_VALUE != arguments.Profile {
+	if FlagProfileValue != arguments.Profile {
 		viper.SetConfigName(arguments.Profile)
 		if err := viper.MergeInConfig(); err != nil {
 			log.WithFields(log.Fields{
