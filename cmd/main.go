@@ -1,9 +1,11 @@
 package main
 
-import "main/pkg"
+import (
+	"main/application"
+)
 
 func main() {
-	pkg.GoatApplication().Run()
+	application.Start()
 }
 
 /*
