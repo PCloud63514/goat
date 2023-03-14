@@ -1,12 +1,16 @@
 package api
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"main/api/quiz/app"
 	"net/http"
 )
 
-func NewQuizApi() QuizApi {
-	return &quizApi{}
+func NewQuizApi(createQuizService app.CreateQuizService) QuizApi {
+	return &quizApi{
+		createQuizService: createQuizService,
+	}
 }
 
 type QuizApi interface {
@@ -19,6 +23,7 @@ type QuizApi interface {
 }
 
 type quizApi struct {
+	createQuizService app.CreateQuizService
 }
 
 func (api *quizApi) RegisterHandler(router *gin.Engine) {
@@ -30,6 +35,17 @@ func (api *quizApi) RegisterHandler(router *gin.Engine) {
 }
 
 func (api *quizApi) CreateQuiz(c *gin.Context) {
+	var request app.CreateQuizRequest
+	err := c.ShouldBindJSON(&request)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	_, err = api.createQuizService.CreateQuiz(&request)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 	c.JSON(http.StatusCreated, nil)
 }
 func (api *quizApi) UpdateQuiz(c *gin.Context)  {}
