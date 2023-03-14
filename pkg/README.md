@@ -9,3 +9,5 @@
 앱 프로젝트가 정말 작고 추가적인 레벨의 중첩이 많이 효과적이지 않다면 사용하지 않아도 괜찮습니다 (정말로 원하지 않는 한 :-)). 프로젝트가 더 커지고 루트 디렉터리가 꽤 바빠질 때 고려해보세요 (특히 Go가 아닌 앱 컴포넌트가 많이 있다면).
 
 
+## 참조
+Project Layout: https://github.com/golang-standards/project-layout/blob/master/README_ko.md
