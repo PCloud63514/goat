@@ -1,16 +1,8 @@
-package app
+package quiz
 
 import "time"
 
-type CreateQuizService interface {
-	CreateQuiz(request *CreateQuizRequest) (*CreateQuizResponse, error)
-}
 
-func NewCreateQuizService() CreateQuizService {
-	return &createQuizService{}
-}
-
-type createQuizService struct{}
 type CreateQuizRequest struct {
 	Title    string    `json:"title"`
 	Desc     string    `json:"desc"`
@@ -26,7 +18,7 @@ type CreateQuizRequest struct {
 }
 type CreateQuizResponse struct{}
 
-func (service *createQuizService) CreateQuiz(request *CreateQuizRequest) (*CreateQuizResponse, error) {
+func CreateQuiz(request *CreateQuizRequest) (*CreateQuizResponse, error) {
 
 	return nil, nil
 }

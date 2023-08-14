@@ -1,10 +1,7 @@
 package main
 
-import "fmt"
-
-func init() {
-	fmt.Println("INIT!!!!!!!")
-}
+import "goat/internal/application"
 
 func main() {
+	application.Run()
 }
