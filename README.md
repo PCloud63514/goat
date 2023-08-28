@@ -1,7 +1,12 @@
 # Goat Web Starter
 
-업무에 사용되는 Go 언어 정리 겸
-예시로 작성하는 Go Server
+Golang 기반 애플리케이션 템플릿
+
+worker, api server 등 빠른 속도로 개발 가능
+
+- server: gin-gonic 기반 서버 구성
+- batch: batch 설정
+- environments: properties 구성
 
 
 
