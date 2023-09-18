@@ -12,16 +12,11 @@ import (
 )
 
 const (
-	profileDefault    = "default"
-	profileSimpleFlag = "p"
-	profileFlag       = "profile"
-	profileExtension  = ".profile"
-
-	pidExtension          = ".pid"
+	profileDefault        = "default"
+	profileFlag           = "profile"
+	profileSimpleFlag     = "p"
 	propertyFileExtension = "env"
-
-	makeFilePath         = "./"
-	propertyFileReadPath = "res"
+	propertyFileReadPath  = "res"
 )
 
 var (
@@ -32,9 +27,6 @@ var (
 func init() {
 	profile = readProfileOfFlag()
 	propertySource = readPropertySource(profile)
-
-	go makeFile(PID(), pidExtension)
-	go makeFile(profile, profileExtension)
 }
 
 func readPropertySource(profile string) map[string]interface{} {
@@ -57,19 +49,6 @@ func readProfileOfFlag() string {
 	profileFlag := flag.String(profileFlag, profileDefault, "프로필")
 	flag.Parse()
 	return *profileFlag
-}
-
-func makeFile(content any, fileExtension string) {
-	file, err := os.Create(makeFilePath + fileExtension)
-	if nil != err {
-		panic(err)
-	}
-	defer file.Close()
-	if _, err := fmt.Fprintln(file, content); nil != err {
-		if nil != err {
-			panic(err)
-		}
-	}
 }
 
 func Profile() string {
@@ -99,6 +78,7 @@ func GetProperty(key string) (interface{}, error) {
 	lowerKey := strings.ToLower(key)
 	value, ok := propertySource[lowerKey]
 	if !ok {
+		logrus.Warningf(fmt.Errorf("The %s property does not exist.", key).Error())
 		return nil, fmt.Errorf("The %s property does not exist.", key)
 	}
 	return value, nil
@@ -163,4 +143,36 @@ func GetOrDefaultPropertyBool(key string, defaultValue bool) bool {
 		return value
 	}
 	return defaultValue
+}
+
+func GetOrElsePanicProperty(key string) interface{} {
+	v, err := GetProperty(key)
+	if nil != err {
+		panic(err)
+	}
+	return v
+}
+
+func GetOrElsePanicPropertyString(key string) string {
+	v, err := GetPropertyString(key)
+	if nil != err {
+		panic(err)
+	}
+	return v
+}
+
+func GetOrElsePanicPropertyInt(key string) int {
+	v, err := GetPropertyInt(key)
+	if nil != err {
+		panic(err)
+	}
+	return v
+}
+
+func GetOrElsePanicPropertyBool(key string) bool {
+	v, err := GetPropertyBool(key)
+	if nil != err {
+		panic(err)
+	}
+	return v
 }

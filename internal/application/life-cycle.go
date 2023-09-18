@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+const (
+	profileFile  = ".profile"
+	pidFile      = ".pid"
+	makeFilePath = "./"
+)
+
 var (
 	initializeFunc []func()
 	startFunc      []func()
@@ -26,7 +32,6 @@ type DestroyCommand interface {
 func Run() {
 	onInitialize()
 	onStart()
-	applicationStartMsg()
 	fulling()
 }
 
@@ -71,7 +76,6 @@ func applicationStartMsg() {
 		"StartupDateTime":  StartUpDateTime().Format("2006-01-02 15:04:05"),
 		"Profile":          Profile(),
 		"GoVersion":        GoVersion(),
-		"PID":              PID(),
 		"completedSeconds": fmt.Sprintf("%dm %ds", int(elapsedTime.Minutes()), int(elapsedTime.Seconds())%60),
 	}).Info("Application Start!")
 }
@@ -80,12 +84,19 @@ func fulling() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	makeFile(PID(), pidFile)
+	makeFile(Profile(), profileFile)
+
+	applicationStartMsg()
+
 	sigCh := make(chan os.Signal)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	<-sigCh
 
 	logrus.Info("shutdown...")
 	onDestroy(ctx)
+	//removeFile(pidFile)
+	//removeFile(profileFile)
 	logrus.Info("Shutdown complete")
 	os.Exit(0)
 }
@@ -96,4 +107,21 @@ func AddStartEventCallback(f func()) {
 
 func AddDestroyEventCallback(f func(ctx context.Context)) {
 	destroyFunc = append(destroyFunc, f)
+}
+
+func makeFile(content any, fileName string) {
+	file, err := os.Create(makeFilePath + fileName)
+	if nil != err {
+		panic(err)
+	}
+	defer file.Close()
+	if _, err := fmt.Fprintln(file, content); nil != err {
+		if nil != err {
+			panic(err)
+		}
+	}
+}
+
+func removeFile(fileName string) {
+	os.Remove(fileName)
 }
