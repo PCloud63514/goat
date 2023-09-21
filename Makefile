@@ -1,4 +1,4 @@
-PROJECT_NAME := goat-server
+PROJECT_NAME := goat
 PKG_PATH_SERVER := ./cmd
 
 verify:
