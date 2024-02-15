@@ -1,11 +1,5 @@
 package goat
 
-import "time"
+func Run() {
 
-var (
-	startUpDateTime = time.Now()
-)
-
-func GetStartUpDateTime() time.Time {
-	return startUpDateTime
 }

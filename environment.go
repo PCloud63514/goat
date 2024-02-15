@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const (
@@ -13,38 +14,33 @@ const (
 	profile_SHORT_FLAG = "p"
 )
 
-/*
-Profiles, PropertySources Management.
-*/
-type Environment interface {
-	GetProfiles() []string
-	ContainsProfile(expression string) bool
-	GetPropertySources() map[string]interface{}
-	PropertyResolver
-}
-
-type GoatEnvironment struct {
-	Environment
-	resolver PropertyResolver
+type Environment struct {
+	mu       sync.RWMutex
 	profiles []string
+	sources  []PropertySource
 }
 
-func NewGoatEnvironment(propertySource map[string]interface{}) *GoatEnvironment {
+type PropertySource struct {
+	name     string
+	resource map[string]interface{}
+}
+
+func NewEnvironment() *Environment {
 	defaultProfiles := []string{PROFILE_DEFAULT}
 	readProfiles := readProfilesOfFlag()
 	profiles := MergeSlicesUnique(defaultProfiles, readProfiles)
 
-	return &GoatEnvironment{
-		resolver: NewPropertySourcePropertyResolver(propertySource),
+	return &Environment{
+		mu:       sync.RWMutex{},
 		profiles: profiles,
 	}
 }
 
-func (env *GoatEnvironment) GetProfiles() []string {
+func (env *Environment) GetProfiles() []string {
 	return env.profiles
 }
 
-func (env *GoatEnvironment) ContainsProfile(expression string) bool {
+func (env *Environment) ContainsProfile(expression string) bool {
 	for _, profile := range env.profiles {
 		if expression == profile {
 			return true
@@ -53,89 +49,73 @@ func (env *GoatEnvironment) ContainsProfile(expression string) bool {
 	return false
 }
 
-func (env *GoatEnvironment) GetPropertySource() map[string]interface{} {
-	return env.resolver.GetPropertySource()
-}
+func (env *Environment) ContainsProperty(key string) bool {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
 
-type PropertyResolver interface {
-	GetPropertySource() map[string]interface{}
-	ContainsProperty(key string) bool
-	GetPropertyString(key string, defaultValue string) string
-	GetPropertyInt(key string, defaultValue int) int
-	GetPropertyBool(key string, defaultValue bool) bool
-	GetRequiredPropertyString(key string) (string, error)
-	GetRequiredPropertyInt(key string) (int, error)
-	GetRequiredPropertyBool(key string) (bool, error)
-}
-
-type PropertySourcePropertyResolver struct {
-	PropertyResolver
-	propertySource map[string]interface{}
-}
-
-func NewPropertySourcePropertyResolver(propertySource map[string]interface{}) *PropertySourcePropertyResolver {
-	_propertySource := propertySource
-	if _propertySource == nil {
-		_propertySource = make(map[string]interface{})
-	}
-	return &PropertySourcePropertyResolver{
-		propertySource: _propertySource,
-	}
-}
-
-func (p *PropertySourcePropertyResolver) GetPropertySource() map[string]interface{} {
-	return p.propertySource
-}
-
-func (p *PropertySourcePropertyResolver) ContainsProperty(key string) bool {
-	if _, err := p.getProperty(key); err != nil {
+	pKey := env.formattedKey(key)
+	if env.sources != nil {
+		for _, source := range env.sources {
+			if _, ok := source.resource[pKey]; ok {
+				return true
+			}
+		}
 		return false
 	}
-	return true
+
+	return false
 }
 
-func (p *PropertySourcePropertyResolver) GetPropertyString(key string, defaultValue string) string {
-	value, err := p.getProperty(key)
-	if err != nil {
-		return defaultValue
+func (env *Environment) GetPropertyString(key string, defaultValue string) string {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+
+	if value, err := env.getProperty(key); err == nil {
+		return value.(string)
 	}
-	return value.(string)
+	return defaultValue
 }
 
-func (p *PropertySourcePropertyResolver) GetPropertyInt(key string, defaultValue int) int {
-	value, err := p.getProperty(key)
-	if err != nil {
-		return defaultValue
+func (env *Environment) GetPropertyInt(key string, defaultValue int) int {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+
+	if value, err := env.getProperty(key); err == nil {
+		if i, err := strconv.Atoi(value.(string)); err == nil {
+			return i
+		}
 	}
-	i, err := strconv.Atoi(value.(string))
-	if err != nil {
-		return defaultValue
-	}
-	return i
+	return defaultValue
 }
 
-func (p *PropertySourcePropertyResolver) GetPropertyBool(key string, defaultValue bool) bool {
-	value, err := p.getProperty(key)
-	if err != nil {
-		return defaultValue
+func (env *Environment) GetPropertyBool(key string, defaultValue bool) bool {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+
+	if value, err := env.getProperty(key); err == nil {
+		if b, err := strconv.ParseBool(value.(string)); err == nil {
+			return b
+		}
 	}
-	boolValue, err := strconv.ParseBool(value.(string))
-	if err != nil {
-		return defaultValue
-	}
-	return boolValue
+	return defaultValue
 }
 
-func (p *PropertySourcePropertyResolver) GetRequiredPropertyString(key string) (string, error) {
-	value, err := p.getProperty(key)
+func (env *Environment) GetRequiredPropertyString(key string) (string, error) {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+
+	value, err := env.getProperty(key)
 	if err != nil {
 		return "", err
 	}
 	return value.(string), nil
 }
 
-func (p *PropertySourcePropertyResolver) GetRequiredPropertyInt(key string) (int, error) {
-	value, err := p.getProperty(key)
+func (env *Environment) GetRequiredPropertyInt(key string) (int, error) {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+
+	value, err := env.getProperty(key)
 	if err != nil {
 		return 0, err
 	}
@@ -143,36 +123,93 @@ func (p *PropertySourcePropertyResolver) GetRequiredPropertyInt(key string) (int
 	if err != nil {
 		return 0, fmt.Errorf("The [name=%s, value=%s] property is not Integer.", key, value)
 	}
+
 	return i, nil
 }
 
-func (p *PropertySourcePropertyResolver) GetRequiredPropertyBool(key string) (bool, error) {
-	value, err := p.getProperty(key)
+func (env *Environment) GetRequiredPropertyBool(key string) (bool, error) {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+
+	value, err := env.getProperty(key)
 	if err != nil {
 		return false, err
 	}
-	boolValue, err := strconv.ParseBool(value.(string))
+	b, err := strconv.ParseBool(value.(string))
 	if err != nil {
 		return false, fmt.Errorf("The [name=%s, value=%s] property is not Bool.", key, value)
 	}
-	return boolValue, nil
+	return b, nil
 }
 
-func (p *PropertySourcePropertyResolver) getProperty(key string) (interface{}, error) {
-	pKey := p.formattedKey(key)
-	if p.propertySource != nil {
-		value, ok := p.propertySource[pKey]
-		if !ok {
-			return nil, fmt.Errorf("The [name=%s] property does not exist.", key)
+func (env *Environment) AddFirstPropertySource(source PropertySource) {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+
+	env.sources = append([]PropertySource{source}, env.sources...)
+}
+
+func (env *Environment) AddLastPropertySource(source PropertySource) {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+
+	env.sources = append(env.sources, source)
+}
+
+func (env *Environment) RemovePropertySource(name string) {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+	_idx := -1
+
+	for idx, s := range env.sources {
+		if s.name == name {
+			_idx = idx
 		}
-		return value, nil
 	}
-	return nil, fmt.Errorf("The PropertySource is null.")
+
+	if _idx >= 0 || _idx < len(env.sources) {
+		env.sources = append(env.sources[:_idx], env.sources[_idx+1:]...)
+	}
 }
 
-func (p *PropertySourcePropertyResolver) formattedKey(key string) string {
+func (env *Environment) ReplacePropertySource(name string, source PropertySource) {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+	_idx := -1
+
+	for idx, s := range env.sources {
+		if s.name == name {
+			_idx = idx
+		}
+	}
+
+	if _idx >= 0 || _idx < len(env.sources) {
+		_sources := env.sources[:_idx]
+		_sources = append(_sources, source)
+		env.sources = append(_sources, env.sources[_idx+1:]...)
+	}
+}
+
+func (env *Environment) getProperty(key string) (interface{}, error) {
+	pKey := env.formattedKey(key)
+	if env.sources != nil {
+		for _, source := range env.sources {
+			if value, ok := source.resource[pKey]; ok {
+				return value, nil
+			}
+		}
+		return nil, fmt.Errorf("The [name=%s] property does not exist.", key)
+	}
+	return nil, fmt.Errorf("The PropertySources is null.")
+}
+
+func (env *Environment) formattedKey(key string) string {
 	lowerKey := strings.ToLower(key)
 	return lowerKey
+}
+
+func loadProperties(name string) map[string]interface{} {
+	return nil
 }
 
 func readProfilesOfFlag() []string {
