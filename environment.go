@@ -3,15 +3,20 @@ package goat
 import (
 	"flag"
 	"fmt"
+	"github.com/spf13/viper"
 	"strconv"
 	"strings"
 	"sync"
 )
 
 const (
-	PROFILE_DEFAULT    = "default"
-	PROFILE_FLAG       = "profile"
-	profile_SHORT_FLAG = "p"
+	PROFILE_DEFAULT         = "default"
+	PROFILE_SYSTEM          = "system"
+	PROFILE_FLAG            = "profile"
+	PROFILE_SHORT_FLAG      = "p"
+	PROFILE_SEP             = ","
+	PROPERTY_FILE_PATH      = "res"
+	PROPERTY_FILE_EXTENSION = "env"
 )
 
 type Environment struct {
@@ -26,14 +31,28 @@ type PropertySource struct {
 }
 
 func NewEnvironment() *Environment {
-	defaultProfiles := []string{PROFILE_DEFAULT}
-	readProfiles := readProfilesOfFlag()
-	profiles := MergeSlicesUnique(defaultProfiles, readProfiles)
-
-	return &Environment{
+	profiles := MergeSlicesUnique(readProfilesOfFlag(), []string{PROFILE_DEFAULT})
+	env := &Environment{
 		mu:       sync.RWMutex{},
 		profiles: profiles,
+		sources:  []PropertySource{},
 	}
+	emptyPropertySource := PropertySource{
+		name:     "",
+		resource: map[string]interface{}{},
+	}
+	env.AddLastPropertySource(emptyPropertySource)
+	for _, profile := range profiles {
+		if profile != "" {
+			resource := readPropertySource(profile)
+			source := PropertySource{
+				name:     profile,
+				resource: resource,
+			}
+			env.AddLastPropertySource(source)
+		}
+	}
+	return env
 }
 
 func (env *Environment) GetProfiles() []string {
@@ -214,15 +233,29 @@ func loadProperties(name string) map[string]interface{} {
 
 func readProfilesOfFlag() []string {
 	profiles := flag.String(PROFILE_FLAG, "", "Comma-separated list of profiles")
-	p := flag.String(profile_SHORT_FLAG, "", "Comma-separated list of profiles (shorthand)")
+	p := flag.String(PROFILE_SHORT_FLAG, "", "Comma-separated list of profiles (shorthand)")
 	flag.Parse()
 
 	if profiles != nil && *profiles != "" {
-		return strings.Split(*profiles, ",")
+		_profiles := strings.Replace(*profiles, PROFILE_DEFAULT, "", 0)
+		_profiles = strings.Replace(*profiles, PROFILE_SYSTEM, "", 0)
+		return strings.Split(_profiles, ",")
 	}
 
 	if p != nil && *p != "" {
-		return strings.Split(*p, ",")
+		_p := strings.Replace(*p, PROFILE_DEFAULT, "", 0)
+		_p = strings.Replace(*p, PROFILE_SYSTEM, "", 0)
+		return strings.Split(_p, PROFILE_SEP)
 	}
 	return make([]string, 0)
+}
+
+func readPropertySource(profile string) map[string]interface{} {
+	v := viper.New()
+	v.AddConfigPath(PROPERTY_FILE_PATH)
+	v.SetConfigType(PROPERTY_FILE_EXTENSION)
+	v.AutomaticEnv()
+	v.ReadInConfig()
+	v.SetConfigName(profile)
+	return v.AllSettings()
 }
