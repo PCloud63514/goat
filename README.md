@@ -1,14 +1,16 @@
 # Goat Web Starter
 
-Golang 기반 애플리케이션 템플릿
-
-worker, api server 등 빠른 속도로 개발 가능
-
-- server: gin-gonic 기반 서버 구성
-- batch: batch 설정
-- environments: properties 구성
+Golang 기반 애플리케이션 모듈
 
 
+
+
+## 파일
+
+- exported : 외부로 공개할 시스템 내부 기능
+- deprecated : 버전 변경 시 제외될 기능
+- version : 프로젝트 버전
+- doc : 설명
 
 
 ## 주제
