@@ -21,6 +21,10 @@ var (
 	app *Goat = New()
 )
 
+func AddHandlerFunc(hFunc HandlerFunc, t HandlerType) {
+	app.AddHandlerFunc(hFunc, t)
+}
+
 func Run() {
 	app.Run()
 }
