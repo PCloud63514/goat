@@ -2,8 +2,12 @@ package goat
 
 import (
 	"context"
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
+	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -64,6 +68,8 @@ func (app *Goat) onStarting() {
 	for _, execute := range app.getHandlers(HandlerType_Starting) {
 		execute(app.ctx, &app.environment)
 	}
+	// pid, profile export file
+	app.applicationStartMsg()
 }
 
 func (app *Goat) onStarted() {
@@ -102,4 +108,24 @@ func (app *Goat) AddHandlerFunc(hFunc HandlerFunc, t HandlerType) {
 		app.chains[t] = []HandlerFunc{}
 	}
 	app.chains[t] = append(app.chains[t], hFunc)
+}
+
+func (app *Goat) applicationStartMsg() {
+	endTime := time.Now()
+	elapsedTime := endTime.Sub(app.startDateTime)
+
+	logrus.WithFields(logrus.Fields{
+		"StartupDateTime":  app.startDateTime.Format("2006-01-02 15:04:05"),
+		"Profile":          strings.Join(app.environment.GetProfiles(), ","),
+		"GoVersion":        GoVersion(),
+		"completedSeconds": fmt.Sprintf("%dm %ds", int(elapsedTime.Minutes()), int(elapsedTime.Seconds())%60),
+	}).Info("Application Start!")
+}
+
+func GoVersion() string {
+	return runtime.Version()
+}
+
+func PID() int {
+	return os.Getpid()
 }
