@@ -161,6 +161,24 @@ func (env *Environment) GetRequiredPropertyBool(key string) (bool, error) {
 	return b, nil
 }
 
+func (env *Environment) SetProperty(key string, value interface{}) {
+	env.mu.Lock()
+	defer env.mu.Unlock()
+	pKey := env.formattedKey(key)
+	if env.sources == nil {
+		env.sources = []PropertySource{}
+	}
+
+	if len(env.sources) <= 0 {
+		emptyPropertySource := PropertySource{
+			name:     "",
+			resource: map[string]interface{}{},
+		}
+		env.AddLastPropertySource(emptyPropertySource)
+	}
+	env.sources[0].resource[pKey] = value
+}
+
 func (env *Environment) AddFirstPropertySource(source PropertySource) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
