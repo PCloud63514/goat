@@ -9,30 +9,26 @@ import (
 	"time"
 )
 
+type RunType string
 type HandlerType string
 
 const (
-	HandlerType_Starting = "STARTING"
-	HandlerType_Started  = "STARTED"
-	HandlerType_Stop     = "STOP"
+	RunType_Web          RunType     = "WEB"
+	RunType_Default      RunType     = "DEFAULT"
+	HandlerType_Starting HandlerType = "STARTING"
+	HandlerType_Started  HandlerType = "STARTED"
+	HandlerType_Stop     HandlerType = "STOP"
 )
 
 var (
 	app *Goat = New()
 )
 
-func AddHandlerFunc(hFunc HandlerFunc, t HandlerType) {
-	app.AddHandlerFunc(hFunc, t)
-}
-
-func Run() {
-	app.Run()
-}
-
 func New() *Goat {
 	return &Goat{
-		mu:     sync.RWMutex{},
-		chains: make(map[HandlerType][]HandlerFunc),
+		mu:      sync.RWMutex{},
+		chains:  make(map[HandlerType][]HandlerFunc),
+		runType: RunType_Default,
 	}
 }
 
@@ -41,13 +37,14 @@ type HandlerFunc func(ctx context.Context, env *Environment)
 type Goat struct {
 	mu            sync.RWMutex
 	startDateTime time.Time
+	runType       RunType
 	environment   Environment
 	ctx           context.Context
 	cancelFunc    context.CancelFunc
 	chains        map[HandlerType][]HandlerFunc
 }
 
-func (app *Goat) Run() {
+func (app *Goat) Run(rType RunType) {
 	app.onInitialize()
 	app.onStarting()
 	app.onStarted()
@@ -73,6 +70,8 @@ func (app *Goat) onStarted() {
 	for _, execute := range app.getHandlers(HandlerType_Started) {
 		execute(app.ctx, &app.environment)
 	}
+	// batch start
+	// if runType == web -> gin Listen
 }
 
 func (app *Goat) onStop() {
