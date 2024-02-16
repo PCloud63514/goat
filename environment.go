@@ -254,8 +254,8 @@ func readPropertySource(profile string) map[string]interface{} {
 	v := viper.New()
 	v.AddConfigPath(PROPERTY_FILE_PATH)
 	v.SetConfigType(PROPERTY_FILE_EXTENSION)
+	v.SetConfigName(profile)
 	v.AutomaticEnv()
 	v.ReadInConfig()
-	v.SetConfigName(profile)
 	return v.AllSettings()
 }
