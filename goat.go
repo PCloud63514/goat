@@ -1,5 +1,13 @@
 package goat
 
-func Run() {
+var (
+	app *GoatApplication
+)
 
+func init() {
+	app = NewGoatApplication()
+}
+
+func Run() {
+	app.Run()
 }
