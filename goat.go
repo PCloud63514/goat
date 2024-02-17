@@ -77,10 +77,12 @@ func (app *Goat) onStarted() {
 		execute(app.ctx, &app.environment)
 	}
 	// batch start
+	StartScheduler()
 	// if runType == web -> gin Listen
 }
 
 func (app *Goat) onStop() {
+	StopScheduler()
 	for _, execute := range app.getHandlers(HandlerType_Stop) {
 		execute(app.ctx, &app.environment)
 	}
