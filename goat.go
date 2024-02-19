@@ -18,7 +18,7 @@ type HandlerType string
 
 const (
 	RunType_Web          RunType     = "WEB"
-	RunType_Default      RunType     = "DEFAULT"
+	RunType_Standard     RunType     = "STANDARD"
 	HandlerType_Starting HandlerType = "STARTING"
 	HandlerType_Started  HandlerType = "STARTED"
 	HandlerType_Stop     HandlerType = "STOP"
@@ -32,7 +32,7 @@ func New() *Goat {
 	return &Goat{
 		mu:      sync.RWMutex{},
 		chains:  make(map[HandlerType][]HandlerFunc),
-		runType: RunType_Default,
+		runType: RunType_Standard,
 	}
 }
 
