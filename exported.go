@@ -1,7 +1,7 @@
 package goat
 
-func Run(rType RunType) {
-	app.Run(rType)
+func Run() {
+	app.Run()
 }
 
 func AddHandlerFunc(hFunc HandlerFunc, t HandlerType) {

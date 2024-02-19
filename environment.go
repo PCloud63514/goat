@@ -10,19 +10,35 @@ import (
 )
 
 const (
-	PROFILE_DEFAULT         = "default"
-	PROFILE_SYSTEM          = "system"
-	PROFILE_FLAG            = "profile"
-	PROFILE_SHORT_FLAG      = "p"
-	PROFILE_SEP             = ","
-	PROPERTY_FILE_PATH      = "res"
-	PROPERTY_FILE_EXTENSION = "env"
+	profileDefault        = "default"
+	profileSystem         = "system"
+	profileFlag           = "profile"
+	profileShortFlag      = "p"
+	profileSep            = ","
+	propertyFilePath      = "res"
+	propertyFileExtension = "env"
+)
+
+var (
+	defaultProfiles     = []string{profileDefault, profileSystem}
+	emptyPropertySource = PropertySource{
+		name:     "",
+		resource: map[string]interface{}{},
+	}
+	systemPropertySource = PropertySource{
+		name: profileSystem,
+		resource: map[string]interface{}{
+			"SERVER_ADDR": ":9090",
+			"RUN_TYPE":    RunType_Standard,
+		},
+	}
 )
 
 type Environment struct {
-	mu       sync.RWMutex
-	profiles []string
-	sources  []PropertySource
+	mu              sync.RWMutex
+	readProfiles    []string
+	defaultProfiles []string
+	sources         []PropertySource
 }
 
 type PropertySource struct {
@@ -31,18 +47,15 @@ type PropertySource struct {
 }
 
 func NewEnvironment() *Environment {
-	profiles := MergeSlicesUnique(readProfilesOfFlag(), []string{PROFILE_DEFAULT})
 	env := &Environment{
-		mu:       sync.RWMutex{},
-		profiles: profiles,
-		sources:  []PropertySource{},
-	}
-	emptyPropertySource := PropertySource{
-		name:     "",
-		resource: map[string]interface{}{},
+		mu:              sync.RWMutex{},
+		readProfiles:    readProfilesOfFlag(),
+		defaultProfiles: defaultProfiles,
+		sources:         []PropertySource{},
 	}
 	env.AddLastPropertySource(emptyPropertySource)
-	for _, profile := range profiles {
+	env.AddLastPropertySource(systemPropertySource)
+	for _, profile := range env.GetProfiles() {
 		if profile != "" {
 			resource := readPropertySource(profile)
 			source := PropertySource{
@@ -56,11 +69,11 @@ func NewEnvironment() *Environment {
 }
 
 func (env *Environment) GetProfiles() []string {
-	return env.profiles
+	return MergeSlicesUnique(env.readProfiles, env.defaultProfiles)
 }
 
 func (env *Environment) ContainsProfile(expression string) bool {
-	for _, profile := range env.profiles {
+	for _, profile := range env.GetProfiles() {
 		if expression == profile {
 			return true
 		}
@@ -250,28 +263,28 @@ func loadProperties(name string) map[string]interface{} {
 }
 
 func readProfilesOfFlag() []string {
-	profiles := flag.String(PROFILE_FLAG, "", "Comma-separated list of profiles")
-	p := flag.String(PROFILE_SHORT_FLAG, "", "Comma-separated list of profiles (shorthand)")
+	profiles := flag.String(profileFlag, "", "Comma-separated list of profiles")
+	p := flag.String(profileShortFlag, "", "Comma-separated list of profiles (shorthand)")
 	flag.Parse()
 
 	if profiles != nil && *profiles != "" {
-		_profiles := strings.Replace(*profiles, PROFILE_DEFAULT, "", 0)
-		_profiles = strings.Replace(*profiles, PROFILE_SYSTEM, "", 0)
+		_profiles := strings.Replace(*profiles, profileDefault, "", 0)
+		_profiles = strings.Replace(*profiles, profileSystem, "", 0)
 		return strings.Split(_profiles, ",")
 	}
 
 	if p != nil && *p != "" {
-		_p := strings.Replace(*p, PROFILE_DEFAULT, "", 0)
-		_p = strings.Replace(*p, PROFILE_SYSTEM, "", 0)
-		return strings.Split(_p, PROFILE_SEP)
+		_p := strings.Replace(*p, profileDefault, "", 0)
+		_p = strings.Replace(*p, profileSystem, "", 0)
+		return strings.Split(_p, profileSep)
 	}
 	return make([]string, 0)
 }
 
 func readPropertySource(profile string) map[string]interface{} {
 	v := viper.New()
-	v.AddConfigPath(PROPERTY_FILE_PATH)
-	v.SetConfigType(PROPERTY_FILE_EXTENSION)
+	v.AddConfigPath(propertyFilePath)
+	v.SetConfigType(propertyFileExtension)
 	v.SetConfigName(profile)
 	v.AutomaticEnv()
 	v.ReadInConfig()

@@ -30,9 +30,8 @@ var (
 
 func New() *Goat {
 	return &Goat{
-		mu:      sync.RWMutex{},
-		chains:  make(map[HandlerType][]HandlerFunc),
-		runType: RunType_Standard,
+		mu:     sync.RWMutex{},
+		chains: make(map[HandlerType][]HandlerFunc),
 	}
 }
 
@@ -41,14 +40,14 @@ type HandlerFunc func(ctx context.Context, env *Environment)
 type Goat struct {
 	mu            sync.RWMutex
 	startDateTime time.Time
+	environment   *Environment
+	chains        map[HandlerType][]HandlerFunc
 	runType       RunType
-	environment   Environment
 	ctx           context.Context
 	cancelFunc    context.CancelFunc
-	chains        map[HandlerType][]HandlerFunc
 }
 
-func (app *Goat) Run(rType RunType) {
+func (app *Goat) Run() {
 	app.onInitialize()
 	app.onStarting()
 	app.onStarted()
@@ -58,23 +57,22 @@ func (app *Goat) Run(rType RunType) {
 
 func (app *Goat) onInitialize() {
 	app.startDateTime = time.Now()
-	ctx, cancel := context.WithCancel(context.Background())
-	app.ctx = ctx
-	app.cancelFunc = cancel
-	app.environment = *NewEnvironment()
+	app.environment = NewEnvironment()
+	app.updateContext()
 }
 
 func (app *Goat) onStarting() {
 	for _, execute := range app.getHandlers(HandlerType_Starting) {
-		execute(app.ctx, &app.environment)
+		execute(app.ctx, app.environment)
 	}
-	// pid, profile export file
+	app.makeFile(PID(), ".pid")
+	app.makeFile(strings.Join(app.environment.readProfiles, ","), ".profile")
 	app.applicationStartMsg()
 }
 
 func (app *Goat) onStarted() {
 	for _, execute := range app.getHandlers(HandlerType_Started) {
-		execute(app.ctx, &app.environment)
+		execute(app.ctx, app.environment)
 	}
 	// batch start
 	StartScheduler()
@@ -84,7 +82,7 @@ func (app *Goat) onStarted() {
 func (app *Goat) onStop() {
 	StopScheduler()
 	for _, execute := range app.getHandlers(HandlerType_Stop) {
-		execute(app.ctx, &app.environment)
+		execute(app.ctx, app.environment)
 	}
 }
 
@@ -119,6 +117,7 @@ func (app *Goat) applicationStartMsg() {
 	logrus.WithFields(logrus.Fields{
 		"StartupDateTime":  app.startDateTime.Format("2006-01-02 15:04:05"),
 		"Profile":          strings.Join(app.environment.GetProfiles(), ","),
+		"PID":              PID(),
 		"GoVersion":        GoVersion(),
 		"completedSeconds": fmt.Sprintf("%dm %ds", int(elapsedTime.Minutes()), int(elapsedTime.Seconds())%60),
 	}).Info("Application Start!")
@@ -130,4 +129,24 @@ func GoVersion() string {
 
 func PID() int {
 	return os.Getpid()
+}
+
+func (goat *Goat) updateContext() {
+	ctx, cancel := context.WithCancel(context.Background())
+	goat.ctx = ctx
+	goat.cancelFunc = cancel
+	goat.runType = RunType(goat.environment.GetPropertyString("RUN_TYPE", string(RunType_Standard)))
+}
+
+func (goat *Goat) makeFile(content any, fileName string) {
+	file, err := os.Create("./" + fileName)
+	if nil != err {
+		panic(err)
+	}
+	defer file.Close()
+	if _, err := fmt.Fprintln(file, content); nil != err {
+		if nil != err {
+			panic(err)
+		}
+	}
 }
