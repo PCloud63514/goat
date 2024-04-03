@@ -7,27 +7,27 @@ import (
 
 func TestNewEnvironment(t *testing.T) {
 	fmt.Println("HHHHHH")
-	env := NewEnvironment()
+	env := newEnvironment()
 
 	if env == nil {
 		t.Fatal("env must not be null.")
 	}
 }
 
-func TestEnvironment_GetRequiredPropertyString(t *testing.T) {
-	env := NewEnvironment()
+func TestEnvironment_getRequiredPropertyString(t *testing.T) {
+	env := newEnvironment()
 
-	msg, err := env.GetRequiredPropertyString("HELLO_WORLD_MSG")
+	msg, err := env.getRequiredPropertyString("HELLO_WORLD_MSG")
 	if err != nil {
 		t.Fatal("Test Failed")
 	}
 	fmt.Println(msg)
 }
 
-func TestEnvironment_SetProperty(t *testing.T) {
-	env := NewEnvironment()
-	env.SetProperty("TEST", "ABCDEFG")
-	msg, err := env.GetRequiredPropertyString("TEST")
+func TestEnvironment_setProperty(t *testing.T) {
+	env := newEnvironment()
+	env.setProperty("TEST", "ABCDEFG")
+	msg, err := env.getRequiredPropertyString("TEST")
 	if err != nil {
 		t.Fatal(err.Error())
 	}

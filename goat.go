@@ -3,6 +3,7 @@ package goat
 import (
 	"context"
 	"fmt"
+	"github.com/PCloud63514/goat/internal/utils"
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -13,15 +14,14 @@ import (
 	"time"
 )
 
-type RunType string
 type HandlerType string
 
 const (
-	RunType_Web          RunType     = "WEB"
-	RunType_Standard     RunType     = "STANDARD"
-	HandlerType_Starting HandlerType = "STARTING"
-	HandlerType_Started  HandlerType = "STARTED"
-	HandlerType_Stop     HandlerType = "STOP"
+	HandlerType_Initialize HandlerType = "INITIALIZE"
+	HandlerType_Starting   HandlerType = "STARTING"
+	HandlerType_Started    HandlerType = "STARTED"
+	HandlerType_Stop       HandlerType = "STOP"
+	HandlerType_Destroy    HandlerType = "DESTROY"
 )
 
 var (
@@ -29,22 +29,25 @@ var (
 )
 
 func New() *Goat {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Goat{
-		mu:     sync.RWMutex{},
-		chains: make(map[HandlerType][]HandlerFunc),
+		mu:          sync.RWMutex{},
+		chains:      make(map[HandlerType][]HandlerFunc),
+		environment: newEnvironment(),
+		ctx:         ctx,
+		cancelFunc:  cancel,
 	}
 }
 
-type HandlerFunc func(ctx context.Context, env *Environment)
+type HandlerFunc func(ctx context.Context, env *environment)
 
 type Goat struct {
-	mu            sync.RWMutex
-	startDateTime time.Time
-	environment   *Environment
-	chains        map[HandlerType][]HandlerFunc
-	runType       RunType
-	ctx           context.Context
-	cancelFunc    context.CancelFunc
+	mu               sync.RWMutex
+	startRunDateTime time.Time
+	environment      *environment
+	chains           map[HandlerType][]HandlerFunc
+	ctx              context.Context
+	cancelFunc       context.CancelFunc
 }
 
 func (app *Goat) Run() {
@@ -55,35 +58,24 @@ func (app *Goat) Run() {
 	app.onStop()
 }
 
+func (app *Goat) onSystemInitialize() {
+	app.startRunDateTime = time.Now()
+	utils.MakeFile(os.Getpid(), ".pid")
+	utils.MakeFile(strings.Join(app.environment.getProfiles(), ","), ".profile")
+}
+
 func (app *Goat) onInitialize() {
-	app.startDateTime = time.Now()
-	app.environment = NewEnvironment()
-	app.updateContext()
+	app.onSystemInitialize()
+	app.executeHandlers(HandlerType_Initialize)
 }
 
 func (app *Goat) onStarting() {
-	for _, execute := range app.getHandlers(HandlerType_Starting) {
-		execute(app.ctx, app.environment)
-	}
-	app.makeFile(PID(), ".pid")
-	app.makeFile(strings.Join(app.environment.readProfiles, ","), ".profile")
+	app.executeHandlers(HandlerType_Starting)
 	app.applicationStartMsg()
 }
 
 func (app *Goat) onStarted() {
-	for _, execute := range app.getHandlers(HandlerType_Started) {
-		execute(app.ctx, app.environment)
-	}
-	// batch start
-	StartScheduler()
-	// if runType == web -> gin Listen
-}
-
-func (app *Goat) onStop() {
-	StopScheduler()
-	for _, execute := range app.getHandlers(HandlerType_Stop) {
-		execute(app.ctx, app.environment)
-	}
+	app.executeHandlers(HandlerType_Started)
 }
 
 func (app *Goat) onPulling() {
@@ -94,9 +86,35 @@ func (app *Goat) onPulling() {
 		app.cancelFunc()
 	}()
 	<-app.ctx.Done()
+	logrus.Info("shutdown...")
+}
+
+func (app *Goat) onStop() {
+	app.executeHandlers(HandlerType_Stop)
+}
+
+func (app *Goat) onDestroy() {
+	app.executeHandlers(HandlerType_Destroy)
+	logrus.Info("Shutdown complete")
+}
+
+func (app *Goat) applicationStartMsg() {
+	endTime := time.Now()
+	elapsedTime := endTime.Sub(app.startRunDateTime)
+
+	logrus.WithFields(logrus.Fields{
+		"StartupDateTime":  app.startRunDateTime.Format("2006-01-02 15:04:05"),
+		"Profile":          strings.Join(app.environment.getProfiles(), ","),
+		"PID":              os.Getpid(),
+		"GoVersion":        runtime.Version(),
+		"completedSeconds": fmt.Sprintf("%dm %ds", int(elapsedTime.Minutes()), int(elapsedTime.Seconds())%60),
+	}).Info("Application Start!")
 }
 
 func (app *Goat) getHandlers(t HandlerType) []HandlerFunc {
+	app.mu.RLock()
+	defer app.mu.RUnlock()
+
 	if v, ok := app.chains[t]; ok {
 		return v
 	}
@@ -110,43 +128,8 @@ func (app *Goat) AddHandlerFunc(hFunc HandlerFunc, t HandlerType) {
 	app.chains[t] = append(app.chains[t], hFunc)
 }
 
-func (app *Goat) applicationStartMsg() {
-	endTime := time.Now()
-	elapsedTime := endTime.Sub(app.startDateTime)
-
-	logrus.WithFields(logrus.Fields{
-		"StartupDateTime":  app.startDateTime.Format("2006-01-02 15:04:05"),
-		"Profile":          strings.Join(app.environment.GetProfiles(), ","),
-		"PID":              PID(),
-		"GoVersion":        GoVersion(),
-		"completedSeconds": fmt.Sprintf("%dm %ds", int(elapsedTime.Minutes()), int(elapsedTime.Seconds())%60),
-	}).Info("Application Start!")
-}
-
-func GoVersion() string {
-	return runtime.Version()
-}
-
-func PID() int {
-	return os.Getpid()
-}
-
-func (goat *Goat) updateContext() {
-	ctx, cancel := context.WithCancel(context.Background())
-	goat.ctx = ctx
-	goat.cancelFunc = cancel
-	goat.runType = RunType(goat.environment.GetPropertyString("RUN_TYPE", string(RunType_Standard)))
-}
-
-func (goat *Goat) makeFile(content any, fileName string) {
-	file, err := os.Create("./" + fileName)
-	if nil != err {
-		panic(err)
-	}
-	defer file.Close()
-	if _, err := fmt.Fprintln(file, content); nil != err {
-		if nil != err {
-			panic(err)
-		}
+func (app *Goat) executeHandlers(t HandlerType) {
+	for _, execute := range app.getHandlers(t) {
+		execute(app.ctx, app.environment)
 	}
 }

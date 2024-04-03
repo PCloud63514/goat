@@ -1,4 +1,9 @@
-package goat
+package utils
+
+import (
+	"fmt"
+	"os"
+)
 
 func MergeSlicesUnique(a, b []string) []string {
 	m := make(map[string]bool)
@@ -19,4 +24,17 @@ func MergeSlicesUnique(a, b []string) []string {
 	}
 
 	return result
+}
+
+func MakeFile(content any, fileName string) {
+	file, err := os.Create("./" + fileName)
+	if nil != err {
+		panic(err)
+	}
+	defer file.Close()
+	if _, err := fmt.Fprintln(file, content); nil != err {
+		if nil != err {
+			panic(err)
+		}
+	}
 }

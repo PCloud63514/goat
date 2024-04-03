@@ -1,8 +1,8 @@
 package goat
 
 import (
-	"flag"
 	"fmt"
+	"github.com/PCloud63514/goat/internal/utils"
 	"github.com/spf13/viper"
 	"strconv"
 	"strings"
@@ -10,70 +10,63 @@ import (
 )
 
 const (
-	profileDefault        = "default"
-	profileSystem         = "system"
-	profileFlag           = "profile"
-	profileShortFlag      = "p"
-	profileSep            = ","
 	propertyFilePath      = "res"
 	propertyFileExtension = "env"
 )
 
 var (
-	defaultProfiles     = []string{profileDefault, profileSystem}
-	emptyPropertySource = PropertySource{
+	emptyPropertySource = propertySource{
 		name:     "",
 		resource: map[string]interface{}{},
 	}
-	systemPropertySource = PropertySource{
+	systemPropertySource = propertySource{
 		name: profileSystem,
 		resource: map[string]interface{}{
 			"SERVER_ADDR": ":9090",
-			"RUN_TYPE":    RunType_Standard,
 		},
 	}
 )
 
-type Environment struct {
+type environment struct {
 	mu              sync.RWMutex
 	readProfiles    []string
 	defaultProfiles []string
-	sources         []PropertySource
+	sources         []propertySource
 }
 
-type PropertySource struct {
+type propertySource struct {
 	name     string
 	resource map[string]interface{}
 }
 
-func NewEnvironment() *Environment {
-	env := &Environment{
+func newEnvironment() *environment {
+	env := &environment{
 		mu:              sync.RWMutex{},
-		readProfiles:    readProfilesOfFlag(),
+		readProfiles:    readProfiles(),
 		defaultProfiles: defaultProfiles,
-		sources:         []PropertySource{},
+		sources:         []propertySource{},
 	}
-	env.AddLastPropertySource(emptyPropertySource)
-	env.AddLastPropertySource(systemPropertySource)
-	for _, profile := range env.GetProfiles() {
+	env.addLastPropertySource(emptyPropertySource)
+	env.addLastPropertySource(systemPropertySource)
+	for _, profile := range env.getProfiles() {
 		if profile != "" {
 			resource := readPropertySource(profile)
-			source := PropertySource{
+			source := propertySource{
 				name:     profile,
 				resource: resource,
 			}
-			env.AddLastPropertySource(source)
+			env.addLastPropertySource(source)
 		}
 	}
 	return env
 }
 
-func (env *Environment) GetProfiles() []string {
-	return MergeSlicesUnique(env.readProfiles, env.defaultProfiles)
+func (env *environment) getProfiles() []string {
+	return utils.MergeSlicesUnique(env.readProfiles, env.defaultProfiles)
 }
 
-func (env *Environment) ContainsProfile(expression string) bool {
-	for _, profile := range env.GetProfiles() {
+func (env *environment) containsProfile(expression string) bool {
+	for _, profile := range env.getProfiles() {
 		if expression == profile {
 			return true
 		}
@@ -81,7 +74,7 @@ func (env *Environment) ContainsProfile(expression string) bool {
 	return false
 }
 
-func (env *Environment) ContainsProperty(key string) bool {
+func (env *environment) containsProperty(key string) bool {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -98,7 +91,7 @@ func (env *Environment) ContainsProperty(key string) bool {
 	return false
 }
 
-func (env *Environment) GetPropertyString(key string, defaultValue string) string {
+func (env *environment) getPropertyString(key string, defaultValue string) string {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -108,7 +101,7 @@ func (env *Environment) GetPropertyString(key string, defaultValue string) strin
 	return defaultValue
 }
 
-func (env *Environment) GetPropertyInt(key string, defaultValue int) int {
+func (env *environment) getPropertyInt(key string, defaultValue int) int {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -120,7 +113,7 @@ func (env *Environment) GetPropertyInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func (env *Environment) GetPropertyBool(key string, defaultValue bool) bool {
+func (env *environment) getPropertyBool(key string, defaultValue bool) bool {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -132,7 +125,7 @@ func (env *Environment) GetPropertyBool(key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-func (env *Environment) GetRequiredPropertyString(key string) (string, error) {
+func (env *environment) getRequiredPropertyString(key string) (string, error) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -143,7 +136,7 @@ func (env *Environment) GetRequiredPropertyString(key string) (string, error) {
 	return value.(string), nil
 }
 
-func (env *Environment) GetRequiredPropertyInt(key string) (int, error) {
+func (env *environment) getRequiredPropertyInt(key string) (int, error) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -159,7 +152,7 @@ func (env *Environment) GetRequiredPropertyInt(key string) (int, error) {
 	return i, nil
 }
 
-func (env *Environment) GetRequiredPropertyBool(key string) (bool, error) {
+func (env *environment) getRequiredPropertyBool(key string) (bool, error) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -174,39 +167,39 @@ func (env *Environment) GetRequiredPropertyBool(key string) (bool, error) {
 	return b, nil
 }
 
-func (env *Environment) SetProperty(key string, value interface{}) {
+func (env *environment) setProperty(key string, value interface{}) {
 	env.mu.Lock()
 	defer env.mu.Unlock()
 	pKey := env.formattedKey(key)
 	if env.sources == nil {
-		env.sources = []PropertySource{}
+		env.sources = []propertySource{}
 	}
 
 	if len(env.sources) <= 0 {
-		emptyPropertySource := PropertySource{
+		emptyPropertySource := propertySource{
 			name:     "",
 			resource: map[string]interface{}{},
 		}
-		env.AddLastPropertySource(emptyPropertySource)
+		env.addLastPropertySource(emptyPropertySource)
 	}
 	env.sources[0].resource[pKey] = value
 }
 
-func (env *Environment) AddFirstPropertySource(source PropertySource) {
+func (env *environment) addFirstPropertySource(source propertySource) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
-	env.sources = append([]PropertySource{source}, env.sources...)
+	env.sources = append([]propertySource{source}, env.sources...)
 }
 
-func (env *Environment) AddLastPropertySource(source PropertySource) {
+func (env *environment) addLastPropertySource(source propertySource) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
 	env.sources = append(env.sources, source)
 }
 
-func (env *Environment) RemovePropertySource(name string) {
+func (env *environment) removePropertySource(name string) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 	_idx := -1
@@ -222,7 +215,7 @@ func (env *Environment) RemovePropertySource(name string) {
 	}
 }
 
-func (env *Environment) ReplacePropertySource(name string, source PropertySource) {
+func (env *environment) replacePropertySource(name string, source propertySource) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 	_idx := -1
@@ -240,7 +233,7 @@ func (env *Environment) ReplacePropertySource(name string, source PropertySource
 	}
 }
 
-func (env *Environment) getProperty(key string) (interface{}, error) {
+func (env *environment) getProperty(key string) (interface{}, error) {
 	pKey := env.formattedKey(key)
 	if env.sources != nil {
 		for _, source := range env.sources {
@@ -253,32 +246,13 @@ func (env *Environment) getProperty(key string) (interface{}, error) {
 	return nil, fmt.Errorf("The PropertySources is null.")
 }
 
-func (env *Environment) formattedKey(key string) string {
+func (env *environment) formattedKey(key string) string {
 	lowerKey := strings.ToLower(key)
 	return lowerKey
 }
 
 func loadProperties(name string) map[string]interface{} {
 	return nil
-}
-
-func readProfilesOfFlag() []string {
-	profiles := flag.String(profileFlag, "", "Comma-separated list of profiles")
-	p := flag.String(profileShortFlag, "", "Comma-separated list of profiles (shorthand)")
-	flag.Parse()
-
-	if profiles != nil && *profiles != "" {
-		_profiles := strings.Replace(*profiles, profileDefault, "", 0)
-		_profiles = strings.Replace(*profiles, profileSystem, "", 0)
-		return strings.Split(_profiles, ",")
-	}
-
-	if p != nil && *p != "" {
-		_p := strings.Replace(*p, profileDefault, "", 0)
-		_p = strings.Replace(*p, profileSystem, "", 0)
-		return strings.Split(_p, profileSep)
-	}
-	return make([]string, 0)
 }
 
 func readPropertySource(profile string) map[string]interface{} {
