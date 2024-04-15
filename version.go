@@ -1,3 +1,3 @@
 package goat
 
-const Version = "v0.3.7"
+const Version = "v0.4.0"
