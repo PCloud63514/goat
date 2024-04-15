@@ -11,39 +11,39 @@ func AddHandlerFunc(hFunc HandlerFunc, t HandlerType) {
 }
 
 func GetProfiles() []string {
-	return app.environment.getProfiles()
+	return app.environment.GetProfiles()
 }
 
 func ContainsProfile(expression string) bool {
-	return app.environment.containsProfile(expression)
+	return app.environment.ContainsProfile(expression)
 }
 
 func ContainsProperty(key string) bool {
-	return app.environment.containsProperty(key)
+	return app.environment.ContainsProperty(key)
 }
 
 func GetPropertyString(key string, defaultValue string) string {
-	return app.environment.getPropertyString(key, defaultValue)
+	return app.environment.GetPropertyString(key, defaultValue)
 }
 
 func GetPropertyInt(key string, defaultValue int) int {
-	return app.environment.getPropertyInt(key, defaultValue)
+	return app.environment.GetPropertyInt(key, defaultValue)
 }
 
 func GetPropertyBool(key string, defaultValue bool) bool {
-	return app.environment.getPropertyBool(key, defaultValue)
+	return app.environment.GetPropertyBool(key, defaultValue)
 }
 
 func GetRequiredPropertyString(key string) (string, error) {
-	return app.environment.getRequiredPropertyString(key)
+	return app.environment.GetRequiredPropertyString(key)
 }
 
 func GetRequiredPropertyInt(key string) (int, error) {
-	return app.environment.getRequiredPropertyInt(key)
+	return app.environment.GetRequiredPropertyInt(key)
 }
 
 func GetRequiredPropertyBool(key string) (bool, error) {
-	return app.environment.getRequiredPropertyBool(key)
+	return app.environment.GetRequiredPropertyBool(key)
 }
 
 func SetProperty(key string, value interface{}) {

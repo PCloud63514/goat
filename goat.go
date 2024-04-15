@@ -39,12 +39,12 @@ func New() *Goat {
 	}
 }
 
-type HandlerFunc func(ctx context.Context, env *environment)
+type HandlerFunc func(ctx context.Context, env *Environment)
 
 type Goat struct {
 	mu               sync.RWMutex
 	startRunDateTime time.Time
-	environment      *environment
+	environment      *Environment
 	chains           map[HandlerType][]HandlerFunc
 	ctx              context.Context
 	cancelFunc       context.CancelFunc
@@ -61,7 +61,7 @@ func (app *Goat) Run() {
 func (app *Goat) onSystemInitialize() {
 	app.startRunDateTime = time.Now()
 	utils.MakeFile(os.Getpid(), ".pid")
-	utils.MakeFile(strings.Join(app.environment.getProfiles(), ","), ".profile")
+	utils.MakeFile(strings.Join(app.environment.GetProfiles(), ","), ".profile")
 }
 
 func (app *Goat) onInitialize() {
@@ -104,7 +104,7 @@ func (app *Goat) applicationStartMsg() {
 
 	logrus.WithFields(logrus.Fields{
 		"StartupDateTime":  app.startRunDateTime.Format("2006-01-02 15:04:05"),
-		"Profile":          strings.Join(app.environment.getProfiles(), ","),
+		"Profile":          strings.Join(app.environment.GetProfiles(), ","),
 		"PID":              os.Getpid(),
 		"GoVersion":        runtime.Version(),
 		"completedSeconds": fmt.Sprintf("%dm %ds", int(elapsedTime.Minutes()), int(elapsedTime.Seconds())%60),
