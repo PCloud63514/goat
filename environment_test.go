@@ -17,7 +17,7 @@ func TestNewEnvironment(t *testing.T) {
 func TestEnvironment_getRequiredPropertyString(t *testing.T) {
 	env := newEnvironment()
 
-	msg, err := env.getRequiredPropertyString("HELLO_WORLD_MSG")
+	msg, err := env.GetRequiredPropertyString("HELLO_WORLD_MSG")
 	if err != nil {
 		t.Fatal("Test Failed")
 	}
@@ -27,7 +27,7 @@ func TestEnvironment_getRequiredPropertyString(t *testing.T) {
 func TestEnvironment_setProperty(t *testing.T) {
 	env := newEnvironment()
 	env.setProperty("TEST", "ABCDEFG")
-	msg, err := env.getRequiredPropertyString("TEST")
+	msg, err := env.GetRequiredPropertyString("TEST")
 	if err != nil {
 		t.Fatal(err.Error())
 	}

@@ -27,7 +27,7 @@ var (
 	}
 )
 
-type environment struct {
+type Environment struct {
 	mu              sync.RWMutex
 	readProfiles    []string
 	defaultProfiles []string
@@ -39,8 +39,8 @@ type propertySource struct {
 	resource map[string]interface{}
 }
 
-func newEnvironment() *environment {
-	env := &environment{
+func newEnvironment() *Environment {
+	env := &Environment{
 		mu:              sync.RWMutex{},
 		readProfiles:    readProfiles(),
 		defaultProfiles: defaultProfiles,
@@ -48,7 +48,7 @@ func newEnvironment() *environment {
 	}
 	env.addLastPropertySource(emptyPropertySource)
 	env.addLastPropertySource(systemPropertySource)
-	for _, profile := range env.getProfiles() {
+	for _, profile := range env.GetProfiles() {
 		if profile != "" {
 			resource := readPropertySource(profile)
 			source := propertySource{
@@ -61,12 +61,12 @@ func newEnvironment() *environment {
 	return env
 }
 
-func (env *environment) getProfiles() []string {
+func (env *Environment) GetProfiles() []string {
 	return utils.MergeSlicesUnique(env.readProfiles, env.defaultProfiles)
 }
 
-func (env *environment) containsProfile(expression string) bool {
-	for _, profile := range env.getProfiles() {
+func (env *Environment) ContainsProfile(expression string) bool {
+	for _, profile := range env.GetProfiles() {
 		if expression == profile {
 			return true
 		}
@@ -74,7 +74,7 @@ func (env *environment) containsProfile(expression string) bool {
 	return false
 }
 
-func (env *environment) containsProperty(key string) bool {
+func (env *Environment) ContainsProperty(key string) bool {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -91,7 +91,7 @@ func (env *environment) containsProperty(key string) bool {
 	return false
 }
 
-func (env *environment) getPropertyString(key string, defaultValue string) string {
+func (env *Environment) GetPropertyString(key string, defaultValue string) string {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -101,7 +101,7 @@ func (env *environment) getPropertyString(key string, defaultValue string) strin
 	return defaultValue
 }
 
-func (env *environment) getPropertyInt(key string, defaultValue int) int {
+func (env *Environment) GetPropertyInt(key string, defaultValue int) int {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -113,7 +113,7 @@ func (env *environment) getPropertyInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func (env *environment) getPropertyBool(key string, defaultValue bool) bool {
+func (env *Environment) GetPropertyBool(key string, defaultValue bool) bool {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -125,7 +125,7 @@ func (env *environment) getPropertyBool(key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-func (env *environment) getRequiredPropertyString(key string) (string, error) {
+func (env *Environment) GetRequiredPropertyString(key string) (string, error) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -136,7 +136,7 @@ func (env *environment) getRequiredPropertyString(key string) (string, error) {
 	return value.(string), nil
 }
 
-func (env *environment) getRequiredPropertyInt(key string) (int, error) {
+func (env *Environment) GetRequiredPropertyInt(key string) (int, error) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -152,7 +152,7 @@ func (env *environment) getRequiredPropertyInt(key string) (int, error) {
 	return i, nil
 }
 
-func (env *environment) getRequiredPropertyBool(key string) (bool, error) {
+func (env *Environment) GetRequiredPropertyBool(key string) (bool, error) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -167,7 +167,7 @@ func (env *environment) getRequiredPropertyBool(key string) (bool, error) {
 	return b, nil
 }
 
-func (env *environment) setProperty(key string, value interface{}) {
+func (env *Environment) setProperty(key string, value interface{}) {
 	env.mu.Lock()
 	defer env.mu.Unlock()
 	pKey := env.formattedKey(key)
@@ -185,21 +185,21 @@ func (env *environment) setProperty(key string, value interface{}) {
 	env.sources[0].resource[pKey] = value
 }
 
-func (env *environment) addFirstPropertySource(source propertySource) {
+func (env *Environment) addFirstPropertySource(source propertySource) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
 	env.sources = append([]propertySource{source}, env.sources...)
 }
 
-func (env *environment) addLastPropertySource(source propertySource) {
+func (env *Environment) addLastPropertySource(source propertySource) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
 	env.sources = append(env.sources, source)
 }
 
-func (env *environment) removePropertySource(name string) {
+func (env *Environment) removePropertySource(name string) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 	_idx := -1
@@ -215,7 +215,7 @@ func (env *environment) removePropertySource(name string) {
 	}
 }
 
-func (env *environment) replacePropertySource(name string, source propertySource) {
+func (env *Environment) replacePropertySource(name string, source propertySource) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 	_idx := -1
@@ -233,7 +233,7 @@ func (env *environment) replacePropertySource(name string, source propertySource
 	}
 }
 
-func (env *environment) getProperty(key string) (interface{}, error) {
+func (env *Environment) getProperty(key string) (interface{}, error) {
 	pKey := env.formattedKey(key)
 	if env.sources != nil {
 		for _, source := range env.sources {
@@ -246,7 +246,7 @@ func (env *environment) getProperty(key string) (interface{}, error) {
 	return nil, fmt.Errorf("The PropertySources is null.")
 }
 
-func (env *environment) formattedKey(key string) string {
+func (env *Environment) formattedKey(key string) string {
 	lowerKey := strings.ToLower(key)
 	return lowerKey
 }
