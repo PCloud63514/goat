@@ -114,7 +114,6 @@ func (app *Goat) applicationStartMsg() {
 		app.startRunDateTime.Format("2006-01-02 15:04:05"),
 		fmt.Sprintf("%dm %ds", int(elapsedTime.Minutes()), int(elapsedTime.Seconds())%60),
 	)
-	logger.Error(fmt.Errorf("ErrorTest"))
 }
 
 func (app *Goat) getHandlers(t HandlerType) []HandlerFunc {
