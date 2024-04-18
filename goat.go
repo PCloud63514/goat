@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/PCloud63514/goat/internal/utils"
-	"github.com/sirupsen/logrus"
+	"github.com/PCloud63514/goat/logger"
 	"os"
 	"os/signal"
 	"runtime"
@@ -60,6 +60,12 @@ func (app *Goat) Run() {
 
 func (app *Goat) onSystemInitialize() {
 	app.startRunDateTime = time.Now()
+	logger.Infof("Application Initialize\t Profile: [%v]\t PID: %v\tGoVersion: %v\t StartDateTime: %v\t",
+		strings.Join(app.environment.GetProfiles(), ","),
+		os.Getpid(),
+		runtime.Version(),
+		app.startRunDateTime.Format("2006-01-02 15:04:05"),
+	)
 	utils.MakeFile(os.Getpid(), ".pid")
 	utils.MakeFile(strings.Join(app.environment.GetProfiles(), ","), ".profile")
 }
@@ -86,7 +92,7 @@ func (app *Goat) onPulling() {
 		app.cancelFunc()
 	}()
 	<-app.ctx.Done()
-	logrus.Info("shutdown...")
+	logger.Info("shutdown...")
 }
 
 func (app *Goat) onStop() {
@@ -95,20 +101,20 @@ func (app *Goat) onStop() {
 
 func (app *Goat) onDestroy() {
 	app.executeHandlers(HandlerType_Destroy)
-	logrus.Info("Shutdown complete")
+	logger.Info("Shutdown complete")
 }
 
 func (app *Goat) applicationStartMsg() {
 	endTime := time.Now()
 	elapsedTime := endTime.Sub(app.startRunDateTime)
-
-	logrus.WithFields(logrus.Fields{
-		"StartupDateTime":  app.startRunDateTime.Format("2006-01-02 15:04:05"),
-		"Profile":          strings.Join(app.environment.GetProfiles(), ","),
-		"PID":              os.Getpid(),
-		"GoVersion":        runtime.Version(),
-		"completedSeconds": fmt.Sprintf("%dm %ds", int(elapsedTime.Minutes()), int(elapsedTime.Seconds())%60),
-	}).Info("Application Start!")
+	logger.Infof("Application Start\n\t\t\t┠ Profile: [%v]\n\t\t\t┠ PID: %v\n\t\t\t┠ GoVersion: %v\n\t\t\t┠ StartDateTime: %v\n\t\t\t┖ CompletedSeconds: %v",
+		strings.Join(app.environment.GetProfiles(), ","),
+		os.Getpid(),
+		runtime.Version(),
+		app.startRunDateTime.Format("2006-01-02 15:04:05"),
+		fmt.Sprintf("%dm %ds", int(elapsedTime.Minutes()), int(elapsedTime.Seconds())%60),
+	)
+	logger.Error(fmt.Errorf("ErrorTest"))
 }
 
 func (app *Goat) getHandlers(t HandlerType) []HandlerFunc {
