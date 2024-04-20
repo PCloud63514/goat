@@ -47,7 +47,7 @@ func GetRequiredPropertyBool(key string) (bool, error) {
 }
 
 func SetProperty(key string, value interface{}) {
-	app.environment.setProperty(key, value)
+	app.environment.SetProperty(key, value)
 }
 
 func GetCtx() context.Context {

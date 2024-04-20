@@ -11,10 +11,6 @@ var (
 	encoder       zapcore.Encoder       = zapcore.NewConsoleEncoder(encoderConfig)
 )
 
-func init() {
-	logger = newZapLogger()
-}
-
 type zapLogger struct {
 	sugaredLogger *zap.SugaredLogger
 }

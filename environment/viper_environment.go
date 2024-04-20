@@ -1,8 +1,7 @@
-package goat
+package environment
 
 import (
 	"fmt"
-	"github.com/PCloud63514/goat/internal/utils"
 	"github.com/spf13/viper"
 	"strconv"
 	"strings"
@@ -20,14 +19,12 @@ var (
 		resource: map[string]interface{}{},
 	}
 	systemPropertySource = propertySource{
-		name: profileSystem,
-		resource: map[string]interface{}{
-			"SERVER_ADDR": ":9090",
-		},
+		name:     profileSystem,
+		resource: map[string]interface{}{},
 	}
 )
 
-type Environment struct {
+type viperEnvironment struct {
 	mu              sync.RWMutex
 	readProfiles    []string
 	defaultProfiles []string
@@ -39,8 +36,8 @@ type propertySource struct {
 	resource map[string]interface{}
 }
 
-func newEnvironment() *Environment {
-	env := &Environment{
+func newViperEnvironment() Environment {
+	env := &viperEnvironment{
 		mu:              sync.RWMutex{},
 		readProfiles:    readProfiles(),
 		defaultProfiles: defaultProfiles,
@@ -61,11 +58,11 @@ func newEnvironment() *Environment {
 	return env
 }
 
-func (env *Environment) GetProfiles() []string {
-	return utils.MergeSlicesUnique(env.readProfiles, env.defaultProfiles)
+func (env *viperEnvironment) GetProfiles() []string {
+	return mergeSlicesUnique(env.readProfiles, env.defaultProfiles)
 }
 
-func (env *Environment) ContainsProfile(expression string) bool {
+func (env *viperEnvironment) ContainsProfile(expression string) bool {
 	for _, profile := range env.GetProfiles() {
 		if expression == profile {
 			return true
@@ -74,7 +71,7 @@ func (env *Environment) ContainsProfile(expression string) bool {
 	return false
 }
 
-func (env *Environment) ContainsProperty(key string) bool {
+func (env *viperEnvironment) ContainsProperty(key string) bool {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -91,7 +88,7 @@ func (env *Environment) ContainsProperty(key string) bool {
 	return false
 }
 
-func (env *Environment) GetPropertyString(key string, defaultValue string) string {
+func (env *viperEnvironment) GetPropertyString(key string, defaultValue string) string {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -101,7 +98,7 @@ func (env *Environment) GetPropertyString(key string, defaultValue string) strin
 	return defaultValue
 }
 
-func (env *Environment) GetPropertyInt(key string, defaultValue int) int {
+func (env *viperEnvironment) GetPropertyInt(key string, defaultValue int) int {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -113,7 +110,7 @@ func (env *Environment) GetPropertyInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func (env *Environment) GetPropertyBool(key string, defaultValue bool) bool {
+func (env *viperEnvironment) GetPropertyBool(key string, defaultValue bool) bool {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -125,7 +122,7 @@ func (env *Environment) GetPropertyBool(key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-func (env *Environment) GetRequiredPropertyString(key string) (string, error) {
+func (env *viperEnvironment) GetRequiredPropertyString(key string) (string, error) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -136,7 +133,7 @@ func (env *Environment) GetRequiredPropertyString(key string) (string, error) {
 	return value.(string), nil
 }
 
-func (env *Environment) GetRequiredPropertyInt(key string) (int, error) {
+func (env *viperEnvironment) GetRequiredPropertyInt(key string) (int, error) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -152,7 +149,7 @@ func (env *Environment) GetRequiredPropertyInt(key string) (int, error) {
 	return i, nil
 }
 
-func (env *Environment) GetRequiredPropertyBool(key string) (bool, error) {
+func (env *viperEnvironment) GetRequiredPropertyBool(key string) (bool, error) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
@@ -167,7 +164,7 @@ func (env *Environment) GetRequiredPropertyBool(key string) (bool, error) {
 	return b, nil
 }
 
-func (env *Environment) setProperty(key string, value interface{}) {
+func (env *viperEnvironment) SetProperty(key string, value interface{}) {
 	env.mu.Lock()
 	defer env.mu.Unlock()
 	pKey := env.formattedKey(key)
@@ -185,21 +182,21 @@ func (env *Environment) setProperty(key string, value interface{}) {
 	env.sources[0].resource[pKey] = value
 }
 
-func (env *Environment) addFirstPropertySource(source propertySource) {
+func (env *viperEnvironment) addFirstPropertySource(source propertySource) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
 	env.sources = append([]propertySource{source}, env.sources...)
 }
 
-func (env *Environment) addLastPropertySource(source propertySource) {
+func (env *viperEnvironment) addLastPropertySource(source propertySource) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 
 	env.sources = append(env.sources, source)
 }
 
-func (env *Environment) removePropertySource(name string) {
+func (env *viperEnvironment) removePropertySource(name string) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 	_idx := -1
@@ -215,7 +212,7 @@ func (env *Environment) removePropertySource(name string) {
 	}
 }
 
-func (env *Environment) replacePropertySource(name string, source propertySource) {
+func (env *viperEnvironment) replacePropertySource(name string, source propertySource) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
 	_idx := -1
@@ -233,7 +230,7 @@ func (env *Environment) replacePropertySource(name string, source propertySource
 	}
 }
 
-func (env *Environment) getProperty(key string) (interface{}, error) {
+func (env *viperEnvironment) getProperty(key string) (interface{}, error) {
 	pKey := env.formattedKey(key)
 	if env.sources != nil {
 		for _, source := range env.sources {
@@ -246,7 +243,7 @@ func (env *Environment) getProperty(key string) (interface{}, error) {
 	return nil, fmt.Errorf("The PropertySources is null.")
 }
 
-func (env *Environment) formattedKey(key string) string {
+func (env *viperEnvironment) formattedKey(key string) string {
 	lowerKey := strings.ToLower(key)
 	return lowerKey
 }
@@ -263,4 +260,25 @@ func readPropertySource(profile string) map[string]interface{} {
 	v.AutomaticEnv()
 	v.ReadInConfig()
 	return v.AllSettings()
+}
+
+func mergeSlicesUnique(a, b []string) []string {
+	m := make(map[string]bool)
+	var result []string
+
+	for _, item := range a {
+		if _, ok := m[item]; !ok {
+			m[item] = true
+			result = append(result, item)
+		}
+	}
+
+	for _, item := range b {
+		if _, ok := m[item]; !ok {
+			m[item] = true
+			result = append(result, item)
+		}
+	}
+
+	return result
 }

@@ -3,6 +3,7 @@ package goat
 import (
 	"context"
 	"fmt"
+	"github.com/PCloud63514/goat/environment"
 	"github.com/PCloud63514/goat/internal/utils"
 	"github.com/PCloud63514/goat/logger"
 	"os"
@@ -25,26 +26,26 @@ const (
 )
 
 var (
-	app *Goat = New()
+	app *Goat = new()
 )
 
-func New() *Goat {
+func new() *Goat {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Goat{
 		mu:          sync.RWMutex{},
 		chains:      make(map[HandlerType][]HandlerFunc),
-		environment: newEnvironment(),
+		environment: environment.New(),
 		ctx:         ctx,
 		cancelFunc:  cancel,
 	}
 }
 
-type HandlerFunc func(ctx context.Context, env *Environment)
+type HandlerFunc func(ctx context.Context, env environment.Environment)
 
 type Goat struct {
 	mu               sync.RWMutex
 	startRunDateTime time.Time
-	environment      *Environment
+	environment      environment.Environment
 	chains           map[HandlerType][]HandlerFunc
 	ctx              context.Context
 	cancelFunc       context.CancelFunc
