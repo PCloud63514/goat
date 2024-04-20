@@ -43,5 +43,3 @@ type Logger interface {
 	Fatalf(format string, args ...interface{})
 	SetLogLevel(level Level)
 }
-
-var logger Logger

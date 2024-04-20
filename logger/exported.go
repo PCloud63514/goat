@@ -1,6 +1,17 @@
 package logger
 
-import "strings"
+import (
+	"log"
+	"strings"
+)
+
+var logger Logger = newZapLogger()
+
+func init() {
+	if logger == nil {
+		log.Fatal("logger must not be nil")
+	}
+}
 
 func Fatal(args ...interface{}) {
 	logger.Fatal(args)
