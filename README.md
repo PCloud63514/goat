@@ -1,4 +1,4 @@
-# Goat Web Starter
+# Goat
 
 Application Module
 
