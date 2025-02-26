@@ -3,6 +3,7 @@ package environment
 import (
 	"fmt"
 	"github.com/spf13/viper"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ const (
 )
 
 var (
+	sliceRegex          = regexp.MustCompile(`,\s*`)
 	emptyPropertySource = propertySource{
 		name:     "",
 		resource: map[string]interface{}{},
@@ -122,6 +124,15 @@ func (env *viperEnvironment) GetPropertyBool(key string, defaultValue bool) bool
 	return defaultValue
 }
 
+func (env *viperEnvironment) GetPropertySlice(key string, defaultValue []interface{}) []interface{} {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+	if value, err := env.getProperty(key); err == nil {
+		return toSlice(value.(string))
+	}
+	return defaultValue
+}
+
 func (env *viperEnvironment) GetRequiredPropertyString(key string) (string, error) {
 	env.mu.RLock()
 	defer env.mu.RUnlock()
@@ -162,6 +173,26 @@ func (env *viperEnvironment) GetRequiredPropertyBool(key string) (bool, error) {
 		return false, fmt.Errorf("The [name=%s, value=%s] property is not Bool.", key, value)
 	}
 	return b, nil
+}
+
+func (env *viperEnvironment) GetRequiredPropertySlice(key string) ([]interface{}, error) {
+	env.mu.RLock()
+	defer env.mu.RUnlock()
+
+	value, err := env.getProperty(key)
+	if err != nil {
+		return nil, err
+	}
+	return toSlice(value.(string)), nil
+}
+
+func toSlice(value string) []interface{} {
+	stringSlice := sliceRegex.Split(value, -1)
+	result := make([]interface{}, len(stringSlice))
+	for i, v := range stringSlice {
+		result[i] = v
+	}
+	return result
 }
 
 func (env *viperEnvironment) SetProperty(key string, value interface{}) {
