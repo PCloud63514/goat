@@ -1,8 +1,11 @@
 package goat
 
 import (
+	"context"
+	"fmt"
 	"github.com/PCloud63514/goat/environment"
 	"github.com/PCloud63514/goat/profile"
+	"os"
 	"reflect"
 	"time"
 )
@@ -22,18 +25,54 @@ func New(opts ...Option) *Goat {
 	prof := profile.New()
 	env := environment.New(prof.Get()...)
 
-	// hook 기본 생성해야함.
-	// opts로 전달받은 정보도 hook에 추가
-
 	return &Goat{
 		startUpDateTime: startUpDateTime,
 		profile:         prof,
 		environment:     env,
+		hooks:           make(map[HookType][]HookFunc),
 	}
 }
 
 func (g *Goat) Run() {
+	if exitCode := g.run(g.Wait); exitCode != 0 {
+		os.Exit(exitCode)
+	}
+}
 
+func (g *Goat) Wait() <-chan interface{} {
+	return nil
+}
+
+func (g *Goat) Start(ctx context.Context) (err error) {
+	if g.err != nil {
+		return g.err
+	}
+	return nil
+}
+
+func (g *Goat) Stop(ctx context.Context) (err error) {
+	return nil
+}
+
+func (g *Goat) run(done func() <-chan interface{}) (exitCode int) {
+	startCtx, startCancel := context.WithCancel(context.Background())
+	defer startCancel()
+
+	if err := g.Start(startCtx); err != nil {
+		return 1
+	}
+
+	signal := <-done()
+	fmt.Sprintf("signal: %v", signal)
+
+	stopCtx, stopCancel := context.WithCancel(context.Background())
+	defer stopCancel()
+
+	if err := g.Stop(stopCtx); err != nil {
+		return 1
+	}
+
+	return 0
 }
 
 func Provide(constructors ...interface{}) Option {
@@ -45,5 +84,9 @@ func Provide(constructors ...interface{}) Option {
 	}
 
 	// 그래프를 이 단계에서 만들어야하나? 아니다 지금은 그냥 확인만 하면서 추가만함.
+	return nil
+}
+
+func Configuration(configurations ...interface{}) Option {
 	return nil
 }
