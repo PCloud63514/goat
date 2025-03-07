@@ -2,11 +2,12 @@ package goat
 
 import (
 	"context"
-	"fmt"
 	"github.com/PCloud63514/goat/environment"
 	"github.com/PCloud63514/goat/profile"
 	"os"
+	"os/signal"
 	"reflect"
+	"syscall"
 	"time"
 )
 
@@ -39,8 +40,10 @@ func (g *Goat) Run() {
 	}
 }
 
-func (g *Goat) Wait() <-chan interface{} {
-	return nil
+func (g *Goat) Wait() <-chan os.Signal {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	return ch
 }
 
 func (g *Goat) Start(ctx context.Context) (err error) {
@@ -54,7 +57,7 @@ func (g *Goat) Stop(ctx context.Context) (err error) {
 	return nil
 }
 
-func (g *Goat) run(done func() <-chan interface{}) (exitCode int) {
+func (g *Goat) run(done func() <-chan os.Signal) (exitCode int) {
 	startCtx, startCancel := context.WithCancel(context.Background())
 	defer startCancel()
 
@@ -62,8 +65,7 @@ func (g *Goat) run(done func() <-chan interface{}) (exitCode int) {
 		return 1
 	}
 
-	signal := <-done()
-	fmt.Sprintf("signal: %v", signal)
+	<-done()
 
 	stopCtx, stopCancel := context.WithCancel(context.Background())
 	defer stopCancel()
