@@ -17,7 +17,7 @@ type Item[T any] interface {
 	Value() T
 }
 
-type lruCache[T any] struct {
+type LRUCache[T any] struct {
 	name      string
 	mu        sync.RWMutex
 	cache     map[string]*list.Element
@@ -31,9 +31,9 @@ type cacheItem[T any] struct {
 	value T
 }
 
-func newLRUCache[T any](cacheName string, cacheSize int, keyFunc KeyFunc) *lruCache[T] {
+func NewLRUCache[T any](cacheName string, cacheSize int, keyFunc KeyFunc) *LRUCache[T] {
 
-	return &lruCache[T]{
+	return &LRUCache[T]{
 		name:      cacheName,
 		mu:        sync.RWMutex{},
 		cache:     make(map[string]*list.Element),
@@ -43,26 +43,26 @@ func newLRUCache[T any](cacheName string, cacheSize int, keyFunc KeyFunc) *lruCa
 	}
 }
 
-func (c *lruCache[T]) Name() string {
+func (c *LRUCache[T]) Name() string {
 	return c.name
 }
 
-func (c *lruCache[T]) Get(keys ...any) (T, bool) {
+func (c *LRUCache[T]) Get(keys ...any) (T, bool) {
 	key := c.keyFunc(keys...)
 	return c.get(key)
 }
 
-func (c *lruCache[T]) Put(keys []any, value T) {
+func (c *LRUCache[T]) Put(keys []any, value T) {
 	key := c.keyFunc(keys...)
 	c.put(key, value)
 }
 
-func (c *lruCache[T]) Delete(keys ...any) {
+func (c *LRUCache[T]) Delete(keys ...any) {
 	key := c.keyFunc(keys...)
 	c.delete(key)
 }
 
-func (c *lruCache[T]) get(key string) (T, bool) {
+func (c *LRUCache[T]) get(key string) (T, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	var zeroValue T
@@ -73,7 +73,7 @@ func (c *lruCache[T]) get(key string) (T, bool) {
 	return zeroValue, false
 }
 
-func (c *lruCache[T]) put(key string, value T) {
+func (c *LRUCache[T]) put(key string, value T) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -96,7 +96,7 @@ func (c *lruCache[T]) put(key string, value T) {
 	}
 }
 
-func (c *lruCache[T]) delete(key string) {
+func (c *LRUCache[T]) delete(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
