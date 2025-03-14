@@ -24,7 +24,9 @@ type Option interface{}
 func New(opts ...Option) *Goat {
 	startUpDateTime := time.Now()
 	prof := profile.New()
-	env := environment.New(prof.Get()...)
+	env := environment.New(environment.Option {
+		Profiles: profile.Get(),
+	})
 
 	return &Goat{
 		startUpDateTime: startUpDateTime,
