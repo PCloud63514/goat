@@ -73,14 +73,15 @@ func (ae *activeExpireCache[T]) Delete(keys ...any) {
 
 func (ae *activeExpireCache[T]) get(key string) (T, bool) {
 	ae.mu.RLock()
-	defer ae.mu.RUnlock()
 	var zeroValue T
 	if elem, found := ae.cache[key]; found {
 		ae.ll.MoveToFront(elem)
 		item := elem.Value.(*activeExpireCacheItem[T])
 		if item.isExpired() {
+			ae.mu.RUnlock()
 			return zeroValue, false
 		}
+		ae.mu.RUnlock()
 		if ae.expireExtension {
 			ae.mu.Lock()
 			defer ae.mu.Unlock()
@@ -88,6 +89,7 @@ func (ae *activeExpireCache[T]) get(key string) (T, bool) {
 		}
 		return item.value, true
 	}
+	defer ae.mu.RUnlock()
 	return zeroValue, false
 }
 
