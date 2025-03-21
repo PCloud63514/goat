@@ -1,35 +1,23 @@
 package cache
 
-import (
-	"container/list"
-	"sync"
-)
-
 type LRUCache[T any] struct {
-	name      string
-	mu        sync.RWMutex
-	cache     map[string]*list.Element
-	ll        *list.List
-	cacheSize int
-	keyGen    *keyGenerator
-	metrics   *cacheMetrics
+	name    string
+	store   *cacheStore[T, *lruCacheItem[T]]
+	keyGen  *keyGenerator
+	metrics *cacheMetrics
 }
 
-type cacheItem[T any] struct {
+type lruCacheItem[T any] struct {
 	key   string
 	value T
 }
 
-func NewLRUCache[T any](cacheName string, cacheSize int) *LRUCache[T] {
-
+func NewLRUCache[T any](name string, capacity int) Cache[T] {
 	return &LRUCache[T]{
-		name:      cacheName,
-		mu:        sync.RWMutex{},
-		cache:     make(map[string]*list.Element),
-		ll:        list.New(),
-		cacheSize: cacheSize,
-		keyGen:    &keyGenerator{},
-		metrics:   &cacheMetrics{},
+		name:    name,
+		store:   newCacheStore[T, *lruCacheItem[T]](capacity),
+		keyGen:  &keyGenerator{},
+		metrics: &cacheMetrics{},
 	}
 }
 
@@ -38,73 +26,53 @@ func (c *LRUCache[T]) Name() string {
 }
 
 func (c *LRUCache[T]) Get(keys ...any) (T, bool) {
-	key := c.keyGen.Generate(keys...)
+	key := c.keyGen.Generate(keys)
 	return c.get(key)
 }
 
 func (c *LRUCache[T]) Put(keys []any, value T) {
-	key := c.keyGen.Generate(keys...)
+	key := c.keyGen.Generate(keys)
 	c.put(key, value)
 }
 
 func (c *LRUCache[T]) Delete(keys ...any) {
-	key := c.keyGen.Generate(keys...)
+	key := c.keyGen.Generate(keys)
 	c.delete(key)
-}
-
-func (c *LRUCache[T]) get(key string) (T, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	var zeroValue T
-	if elem, found := c.cache[key]; found {
-		c.ll.MoveToFront(elem)
-		c.metrics.Hit()
-		return elem.Value.(*cacheItem[T]).value, true
-	}
-	c.metrics.Miss()
-	return zeroValue, false
-}
-
-func (c *LRUCache[T]) put(key string, value T) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if elem, found := c.cache[key]; found {
-		c.ll.MoveToFront(elem)
-		item := elem.Value.(*cacheItem[T])
-		item.value = value
-		return
-	}
-
-	elem := c.ll.PushFront(&cacheItem[T]{key, value})
-	c.cache[key] = elem
-
-	if c.ll.Len() > c.cacheSize {
-		last := c.ll.Back()
-		if last != nil {
-			c.ll.Remove(last)
-			delete(c.cache, last.Value.(*cacheItem[T]).key)
-		}
-	}
-}
-
-func (c *LRUCache[T]) delete(key string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if elem, found := c.cache[key]; found {
-		c.ll.Remove(elem)
-		delete(c.cache, key)
-	}
 }
 
 func (c *LRUCache[T]) Stat() *CacheStat {
 	return &CacheStat{
 		Name:        c.name,
-		MaxEntries:  c.cacheSize,
-		CurrentSize: c.ll.Len(),
+		MaxEntries:  c.store.Capacity(),
+		CurrentSize: c.store.Size(),
 		HitCount:    c.metrics.HitCount(),
 		MissCount:   c.metrics.MissCount(),
 		HitRate:     c.metrics.HitRate(),
 	}
+}
+
+func (i *lruCacheItem[T]) Key() string {
+	return i.key
+}
+
+func (i *lruCacheItem[T]) Value() T {
+	return i.value
+}
+
+func (c *LRUCache[T]) get(key string) (T, bool) {
+	if it, ok := c.store.Get(key); ok {
+		c.metrics.Hit()
+		return it.Value(), true
+	}
+	c.metrics.Miss()
+	var zeroValue T
+	return zeroValue, false
+}
+
+func (c *LRUCache[T]) put(key string, value T) {
+	c.store.Put(&lruCacheItem[T]{key: key, value: value})
+}
+
+func (c *LRUCache[T]) delete(key string) {
+	c.store.Delete(key)
 }
