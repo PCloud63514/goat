@@ -46,7 +46,7 @@ func Test_LRUCache(t *testing.T) {
 	})
 
 	t.Run("should return false if capacity is full", func(t *testing.T) {
-		cache := NewLRUCache[string]("lruCache", 100, defaultKeyFUnc)
+		cache := NewLRUCache[string]("lruCache", 1, defaultKeyFUnc)
 		cache.Put([]any{"key"}, "Test1")
 		cache.Put([]any{"key2"}, "Test2")
 		_, ok := cache.Get("key")
