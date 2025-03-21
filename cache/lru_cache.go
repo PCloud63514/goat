@@ -11,7 +11,7 @@ type LRUCache[T any] struct {
 	cache     map[string]*list.Element
 	ll        *list.List
 	cacheSize int
-	keyFunc   KeyFunc
+	keyGen    *keyGenerator
 	metrics   *cacheMetrics
 }
 
@@ -20,7 +20,7 @@ type cacheItem[T any] struct {
 	value T
 }
 
-func NewLRUCache[T any](cacheName string, cacheSize int, keyFunc KeyFunc) *LRUCache[T] {
+func NewLRUCache[T any](cacheName string, cacheSize int) *LRUCache[T] {
 
 	return &LRUCache[T]{
 		name:      cacheName,
@@ -28,7 +28,7 @@ func NewLRUCache[T any](cacheName string, cacheSize int, keyFunc KeyFunc) *LRUCa
 		cache:     make(map[string]*list.Element),
 		ll:        list.New(),
 		cacheSize: cacheSize,
-		keyFunc:   keyFunc,
+		keyGen:    &keyGenerator{},
 		metrics:   &cacheMetrics{},
 	}
 }
@@ -38,17 +38,17 @@ func (c *LRUCache[T]) Name() string {
 }
 
 func (c *LRUCache[T]) Get(keys ...any) (T, bool) {
-	key := c.keyFunc(keys...)
+	key := c.keyGen.Generate(keys...)
 	return c.get(key)
 }
 
 func (c *LRUCache[T]) Put(keys []any, value T) {
-	key := c.keyFunc(keys...)
+	key := c.keyGen.Generate(keys...)
 	c.put(key, value)
 }
 
 func (c *LRUCache[T]) Delete(keys ...any) {
-	key := c.keyFunc(keys...)
+	key := c.keyGen.Generate(keys...)
 	c.delete(key)
 }
 

@@ -7,7 +7,7 @@ import (
 
 func Test_LRUCache(t *testing.T) {
 	t.Run("should store put and get value", func(t *testing.T) {
-		cache := NewLRUCache[string]("lruCache", 100, defaultKeyFUnc)
+		cache := NewLRUCache[string]("lruCache", 100)
 		cache.Put([]any{"key"}, "Test1")
 		v, ok := cache.Get("key")
 		assert.True(t, ok)
@@ -15,13 +15,13 @@ func Test_LRUCache(t *testing.T) {
 	})
 
 	t.Run("should return false if key not found", func(t *testing.T) {
-		cache := NewLRUCache[string]("lruCache", 100, defaultKeyFUnc)
+		cache := NewLRUCache[string]("lruCache", 100)
 		_, ok := cache.Get("key")
 		assert.False(t, ok)
 	})
 
 	t.Run("should delete storeItem", func(t *testing.T) {
-		cache := NewLRUCache[string]("lruCache", 100, defaultKeyFUnc)
+		cache := NewLRUCache[string]("lruCache", 100)
 		cache.Put([]any{"key"}, "Test1")
 		cache.Delete("key")
 		_, ok := cache.Get("key")
@@ -29,7 +29,7 @@ func Test_LRUCache(t *testing.T) {
 	})
 
 	t.Run("should return stat", func(t *testing.T) {
-		cache := NewLRUCache[string]("lruCache", 100, defaultKeyFUnc)
+		cache := NewLRUCache[string]("lruCache", 100)
 		cache.Put([]any{"key"}, "Test1")
 		cache.Put([]any{"key2"}, "Test2")
 		cache.Get("key")
@@ -46,7 +46,7 @@ func Test_LRUCache(t *testing.T) {
 	})
 
 	t.Run("should return false if capacity is full", func(t *testing.T) {
-		cache := NewLRUCache[string]("lruCache", 1, defaultKeyFUnc)
+		cache := NewLRUCache[string]("lruCache", 1)
 		cache.Put([]any{"key"}, "Test1")
 		cache.Put([]any{"key2"}, "Test2")
 		_, ok := cache.Get("key")

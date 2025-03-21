@@ -14,7 +14,7 @@ type activeExpireCache[T any] struct {
 	cache           map[string]*list.Element
 	ll              *list.List
 	cacheSize       int
-	keyFunc         KeyFunc
+	keyGen          *keyGenerator
 	ttl             time.Duration
 	expireExtension bool
 	samplingDelay   time.Duration
@@ -29,7 +29,7 @@ type activeExpireCacheItem[T any] struct {
 	expiration time.Time
 }
 
-func NewActiveExpireCache[T any](ctx context.Context, name string, capacity int, keyFunc KeyFunc,
+func NewActiveExpireCache[T any](ctx context.Context, name string, capacity int,
 	ttl time.Duration, expireExtension bool,
 	samplingDelay time.Duration, samplingRatio int, samplingSize int) Cache[T] {
 	if ctx == nil {
@@ -42,7 +42,7 @@ func NewActiveExpireCache[T any](ctx context.Context, name string, capacity int,
 		cache:           make(map[string]*list.Element),
 		ll:              list.New(),
 		cacheSize:       capacity,
-		keyFunc:         keyFunc,
+		keyGen:          &keyGenerator{},
 		ttl:             ttl,
 		expireExtension: expireExtension,
 		samplingDelay:   samplingDelay,
@@ -59,17 +59,17 @@ func (ae *activeExpireCache[T]) Name() string {
 }
 
 func (ae *activeExpireCache[T]) Get(keys ...any) (T, bool) {
-	key := ae.keyFunc(keys...)
+	key := ae.keyGen.Generate(keys...)
 	return ae.get(key)
 }
 
 func (ae *activeExpireCache[T]) Put(keys []any, value T) {
-	key := ae.keyFunc(keys...)
+	key := ae.keyGen.Generate(keys...)
 	ae.put(key, value)
 }
 
 func (ae *activeExpireCache[T]) Delete(keys ...any) {
-	key := ae.keyFunc(keys...)
+	key := ae.keyGen.Generate(keys...)
 	ae.delete(key)
 }
 

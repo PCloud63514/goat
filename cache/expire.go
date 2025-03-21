@@ -12,7 +12,7 @@ type expireCache[T any] struct {
 	cache           map[string]*list.Element
 	ll              *list.List
 	cacheSize       int
-	keyFunc         KeyFunc
+	keyGen          *keyGenerator
 	ttl             time.Duration
 	expireExtension bool
 	metrics         *cacheMetrics
@@ -24,14 +24,14 @@ type expireCacheItem[T any] struct {
 	expiration time.Time
 }
 
-func NewExpireCache[T any](name string, capacity int, keyFunc KeyFunc, ttl time.Duration, expireExtension bool) Cache[T] {
+func NewExpireCache[T any](name string, capacity int, ttl time.Duration, expireExtension bool) Cache[T] {
 	return &expireCache[T]{
 		name:            name,
 		mu:              sync.RWMutex{},
 		cache:           make(map[string]*list.Element),
 		ll:              list.New(),
 		cacheSize:       capacity,
-		keyFunc:         keyFunc,
+		keyGen:          &keyGenerator{},
 		ttl:             ttl,
 		expireExtension: expireExtension,
 		metrics:         &cacheMetrics{},
@@ -43,17 +43,17 @@ func (ex *expireCache[T]) Name() string {
 }
 
 func (ex *expireCache[T]) Get(keys ...any) (T, bool) {
-	key := ex.keyFunc(keys...)
+	key := ex.keyGen.Generate(keys...)
 	return ex.get(key)
 }
 
 func (ex *expireCache[T]) Put(keys []any, value T) {
-	key := ex.keyFunc(keys...)
+	key := ex.keyGen.Generate(keys...)
 	ex.put(key, value)
 }
 
 func (ex *expireCache[T]) Delete(keys ...any) {
-	key := ex.keyFunc(keys...)
+	key := ex.keyGen.Generate(keys...)
 	ex.delete(key)
 }
 

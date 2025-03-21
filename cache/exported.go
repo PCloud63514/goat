@@ -15,7 +15,6 @@ const (
 
 var (
 	defaultCacheSize       = 1000
-	defaultKeyFUnc         = defaultKeyFunc
 	defaultTTL             = time.Minute * 10
 	defaultExpireExtension = false
 	defaultSamplingDelay   = time.Millisecond * 100
@@ -29,7 +28,6 @@ type Option struct {
 	Type            CacheType
 	Name            string
 	CacheSize       int
-	KeyFunc         KeyFunc
 	TTL             time.Duration
 	ExpireExtension bool
 	Sampling        struct {
@@ -41,24 +39,23 @@ type Option struct {
 }
 
 func New[T any](opts ...Option) Cache[T] {
-	tp, name, cacheSize, keyFunc, ttl, expireExtension, backgroundCtx, sampleDelay, sampleRatio, sampleSize := split[T](opts...)
+	tp, name, cacheSize, ttl, expireExtension, backgroundCtx, sampleDelay, sampleRatio, sampleSize := split[T](opts...)
 	switch tp {
 	case LRU:
-		return NewLRUCache[T](name, cacheSize, keyFunc)
+		return NewLRUCache[T](name, cacheSize)
 	case EXPIRE_TYPE_LAZY_DELETION:
-		return NewExpireCache[T](name, cacheSize, keyFunc, ttl, expireExtension)
+		return NewExpireCache[T](name, cacheSize, ttl, expireExtension)
 	case EXPIRE_TYPE_ACTIVE_EXPIRATION:
-		return NewActiveExpireCache[T](backgroundCtx, name, cacheSize, keyFunc, ttl, expireExtension, sampleDelay, sampleRatio, sampleSize)
+		return NewActiveExpireCache[T](backgroundCtx, name, cacheSize, ttl, expireExtension, sampleDelay, sampleRatio, sampleSize)
 	default:
-		return NewLRUCache[T](name, cacheSize, keyFunc)
+		return NewLRUCache[T](name, cacheSize)
 	}
 }
 
-func split[T any](opts ...Option) (cacheType CacheType, name string, cacheSize int, keyFunc KeyFunc, ttl time.Duration, expireExtension bool, backgroundCtx context.Context, samplingDelay time.Duration, samplingRatio int, samplingSize int) {
+func split[T any](opts ...Option) (cacheType CacheType, name string, cacheSize int, ttl time.Duration, expireExtension bool, backgroundCtx context.Context, samplingDelay time.Duration, samplingRatio int, samplingSize int) {
 	var zeroValue T
 	name = fmt.Sprintf("Cache-%v", reflect.TypeOf(zeroValue).Name())
 	cacheSize = defaultCacheSize
-	keyFunc = defaultKeyFUnc
 	ttl = defaultTTL
 	expireExtension = defaultExpireExtension
 	samplingDelay = defaultSamplingDelay
@@ -72,9 +69,6 @@ func split[T any](opts ...Option) (cacheType CacheType, name string, cacheSize i
 		}
 		if opts[0].CacheSize > 0 {
 			cacheSize = opts[0].CacheSize
-		}
-		if opts[0].KeyFunc != nil {
-			keyFunc = opts[0].KeyFunc
 		}
 		if opts[0].TTL > 0 {
 			ttl = opts[0].TTL
