@@ -20,7 +20,7 @@ type activeExpireCache[T any] struct {
 	samplingDelay   time.Duration
 	samplingRatio   int
 	samplingSize    int
-	metrics 	   *cacheMetrics
+	metrics         *cacheMetrics
 }
 
 type activeExpireCacheItem[T any] struct {
@@ -185,4 +185,15 @@ func (ae *activeExpireCache[T]) sampleKeys() []string {
 		sampled++
 	}
 	return sampledKeys
+}
+
+func (ae *activeExpireCache[T]) Stat() *CacheStat {
+	return &CacheStat{
+		Name:        ae.name,
+		MaxEntries:  ae.cacheSize,
+		CurrentSize: ae.ll.Len(),
+		HitCount:    ae.metrics.HitCount(),
+		MissCount:   ae.metrics.MissCount(),
+		HitRate:     ae.metrics.HitRate(),
+	}
 }

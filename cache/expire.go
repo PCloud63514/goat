@@ -127,3 +127,14 @@ func (ei *expireCacheItem[T]) isExpired() bool {
 func (ei *expireCacheItem[T]) isNotExpired() bool {
 	return !time.Now().After(ei.expiration)
 }
+
+func (ex *expireCache[T]) Stat() *CacheStat {
+	return &CacheStat{
+		Name:        ex.name,
+		MaxEntries:  ex.cacheSize,
+		CurrentSize: ex.ll.Len(),
+		HitCount:    ex.metrics.HitCount(),
+		MissCount:   ex.metrics.MissCount(),
+		HitRate:     ex.metrics.HitRate(),
+	}
+}
