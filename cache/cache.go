@@ -24,6 +24,7 @@ type LRUCache[T any] struct {
 	ll        *list.List
 	cacheSize int
 	keyFunc   KeyFunc
+	metrics   *cacheMetrics
 }
 
 type cacheItem[T any] struct {
@@ -40,6 +41,7 @@ func NewLRUCache[T any](cacheName string, cacheSize int, keyFunc KeyFunc) *LRUCa
 		ll:        list.New(),
 		cacheSize: cacheSize,
 		keyFunc:   keyFunc,
+		metrics:   &cacheMetrics{},
 	}
 }
 
@@ -68,8 +70,10 @@ func (c *LRUCache[T]) get(key string) (T, bool) {
 	var zeroValue T
 	if elem, found := c.cache[key]; found {
 		c.ll.MoveToFront(elem)
+		c.metrics.Hit()
 		return elem.Value.(*cacheItem[T]).value, true
 	}
+	c.metrics.Miss()
 	return zeroValue, false
 }
 

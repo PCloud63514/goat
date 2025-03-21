@@ -15,6 +15,7 @@ type expireCache[T any] struct {
 	keyFunc         KeyFunc
 	ttl             time.Duration
 	expireExtension bool
+	metrics         *cacheMetrics
 }
 
 type expireCacheItem[T any] struct {
@@ -33,6 +34,7 @@ func NewExpireCache[T any](name string, capacity int, keyFunc KeyFunc, ttl time.
 		keyFunc:         keyFunc,
 		ttl:             ttl,
 		expireExtension: expireExtension,
+		metrics:         &cacheMetrics{},
 	}
 }
 
@@ -67,6 +69,7 @@ func (ex *expireCache[T]) get(key string) (T, bool) {
 			defer ex.mu.Unlock()
 			ex.ll.Remove(elem)
 			delete(ex.cache, key)
+			ex.metrics.Miss()
 			return zeroValue, false
 		}
 		ex.mu.RUnlock()
@@ -75,8 +78,10 @@ func (ex *expireCache[T]) get(key string) (T, bool) {
 			defer ex.mu.Unlock()
 			item.expiration = time.Now().Add(ex.ttl)
 		}
+		ex.metrics.Hit()
 		return item.value, true
 	}
+	ex.metrics.Miss()
 	defer ex.mu.RUnlock()
 	return zeroValue, false
 }

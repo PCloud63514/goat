@@ -20,6 +20,7 @@ type activeExpireCache[T any] struct {
 	samplingDelay   time.Duration
 	samplingRatio   int
 	samplingSize    int
+	metrics 	   *cacheMetrics
 }
 
 type activeExpireCacheItem[T any] struct {
@@ -47,6 +48,7 @@ func NewActiveExpireCache[T any](ctx context.Context, name string, capacity int,
 		samplingDelay:   samplingDelay,
 		samplingRatio:   samplingRatio,
 		samplingSize:    samplingSize,
+		metrics:         &cacheMetrics{},
 	}
 	go cache.backgroundScan()
 	return cache
@@ -86,8 +88,10 @@ func (ae *activeExpireCache[T]) get(key string) (T, bool) {
 			defer ae.mu.Unlock()
 			item.expiration = time.Now().Add(ae.ttl)
 		}
+		ae.metrics.Hit()
 		return item.value, true
 	}
+	ae.metrics.Miss()
 	return zeroValue, false
 }
 
