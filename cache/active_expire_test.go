@@ -7,61 +7,71 @@ import (
 	"time"
 )
 
-type TestActiveExpireCacheItem struct{}
-
-func TestActiveExpireCache_New(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cache := NewActiveExpireCache[*TestActiveExpireCacheItem](ctx, "Name", 10, time.Second*2, false, time.Microsecond*100, 25, 100)
-	assert.NotNil(t, cache, "Failed to create an instance.")
-	cancel()
-}
-
-func TestActiveExpireCache_Name(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cache := NewActiveExpireCache[*TestActiveExpireCacheItem](ctx, "Name", 10, time.Second*2, false, time.Microsecond*100, 25, 100)
-	assert.Equal(t, cache.Name(), "Name", "Name() = %s; want Name", cache.Name())
-	cancel()
-}
-
-func TestActiveExpireCache_Get(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cache := NewActiveExpireCache[*TestActiveExpireCacheItem](ctx, "Name", 10, time.Second*2, false, time.Microsecond*100, 25, 100)
-
-	t.Run("should return false if there is no data", func(t *testing.T) {
-		_, ok := cache.Get("key")
-		assert.Equal(t, ok, false, "Get() = (_, false); want (_, true)")
+func Test_ActiveExpireCache(t *testing.T) {
+	t.Run("should store put and get value", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cache := NewActiveExpireCache[string]("Name", 10, time.Second*10, false, ctx, time.Microsecond*100, 25, 100)
+		cache.Put([]any{"key"}, "Test1")
+		v, ok := cache.Get("key")
+		assert.True(t, ok)
+		assert.Equal(t, "Test1", v)
+		cancel()
 	})
 
-	t.Run("should return true if there is data", func(t *testing.T) {
-		cache.Put([]any{"key"}, &TestActiveExpireCacheItem{})
+	t.Run("should return false if key not found", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cache := NewActiveExpireCache[string]("Name", 10, time.Second*10, false, ctx, time.Microsecond*100, 25, 100)
 		_, ok := cache.Get("key")
-		assert.Equal(t, ok, true, "Get() = (_, false); want (_, true)")
+		assert.False(t, ok)
+		cancel()
 	})
 
-	t.Run("should return false if data is expired", func(t *testing.T) {
-		cache.Put([]any{"key"}, &TestActiveExpireCacheItem{})
-		time.Sleep(time.Second * 4)
+	t.Run("should delete storeItem", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cache := NewActiveExpireCache[string]("Name", 10, time.Second*10, false, ctx, time.Microsecond*100, 25, 100)
+		cache.Put([]any{"key"}, "Test1")
+		cache.Delete("key")
 		_, ok := cache.Get("key")
-		assert.Equal(t, ok, false, "Get() = (_, false); want (_, true)")
+		assert.False(t, ok)
+		cancel()
 	})
-	cancel()
-}
 
-func TestActiveExpireCache_Put(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cache := NewActiveExpireCache[*TestActiveExpireCacheItem](ctx, "Name", 10, time.Second*2, false, time.Microsecond*100, 25, 100)
-	cache.Put([]any{"key"}, &TestActiveExpireCacheItem{})
-	_, ok := cache.Get("key")
-	assert.Equal(t, ok, true, "Put() = (_, false); want (_, true)")
-	cancel()
-}
+	t.Run("should return stat", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cache := NewActiveExpireCache[string]("Name", 10, time.Second*10, false, ctx, time.Microsecond*100, 25, 100)
+		cache.Put([]any{"key"}, "Test1")
+		cache.Put([]any{"key2"}, "Test2")
+		cache.Get("key")
+		cache.Get("key3")
 
-func TestActiveExpireCache_Delete(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cache := NewActiveExpireCache[*TestActiveExpireCacheItem](ctx, "Name", 10, time.Second*2, false, time.Microsecond*100, 25, 100)
-	cache.Put([]any{"key"}, &TestActiveExpireCacheItem{})
-	cache.Delete("key")
-	_, ok := cache.Get("key")
-	assert.Equal(t, ok, false, "Delete() = (_, false); want (_, true)")
-	cancel()
+		stat := cache.Stat()
+
+		assert.Equal(t, cache.Name(), stat.Name)
+		assert.Equal(t, 10, stat.MaxEntries)
+		assert.Equal(t, 2, stat.CurrentSize)
+		assert.Equal(t, uint64(1), stat.HitCount)
+		assert.Equal(t, uint64(1), stat.MissCount)
+		assert.Equal(t, float64(50), stat.HitRate)
+		cancel()
+	})
+
+	t.Run("should return false if capacity is full", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cache := NewActiveExpireCache[string]("Name", 1, time.Second*10, false, ctx, time.Microsecond*100, 25, 100)
+		cache.Put([]any{"key"}, "Test1")
+		cache.Put([]any{"key2"}, "Test2")
+		_, ok := cache.Get("key")
+		assert.False(t, ok)
+		cancel()
+	})
+
+	t.Run("should return false if key is expired", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cache := NewActiveExpireCache[string]("Name", 10, time.Second*1, false, ctx, time.Microsecond*100, 25, 100)
+		cache.Put([]any{"key"}, "Test1")
+		time.Sleep(time.Second * 2)
+		_, ok := cache.Get("key")
+		assert.False(t, ok)
+		cancel()
+	})
 }

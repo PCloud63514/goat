@@ -29,9 +29,9 @@ type activeExpireCacheItem[T any] struct {
 	expiration time.Time
 }
 
-func NewActiveExpireCache[T any](ctx context.Context, name string, capacity int,
-	ttl time.Duration, expireExtension bool,
-	samplingDelay time.Duration, samplingRatio int, samplingSize int) Cache[T] {
+func NewActiveExpireCache[T any](name string, capacity int,
+	ttl time.Duration, expireExtension bool, ctx context.Context,
+samplingDelay time.Duration, samplingRatio int, samplingSize int) Cache[T] {
 	if ctx == nil {
 		panic("[ActiveExpireCache] The context must not be nil.")
 	}

@@ -46,7 +46,7 @@ func New[T any](opts ...Option) Cache[T] {
 	case EXPIRE_TYPE_LAZY_DELETION:
 		return NewExpireCache[T](name, cacheSize, ttl, expireExtension)
 	case EXPIRE_TYPE_ACTIVE_EXPIRATION:
-		return NewActiveExpireCache[T](backgroundCtx, name, cacheSize, ttl, expireExtension, sampleDelay, sampleRatio, sampleSize)
+		return NewActiveExpireCache[T](name, cacheSize, ttl, expireExtension, backgroundCtx, sampleDelay, sampleRatio, sampleSize)
 	default:
 		return NewLRUCache[T](name, cacheSize)
 	}
