@@ -17,7 +17,7 @@ var (
 	defaultCacheSize       = 1000
 	defaultTTL             = time.Minute * 10
 	defaultExpireExtension = false
-	defaultSamplingDelay   = time.Millisecond * 100
+	defaultSamplingDelay   = time.Millisecond * 1000
 	defaultSamplingRatio   = 25
 	defaultSamplingSize    = 100
 )

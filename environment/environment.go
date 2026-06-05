@@ -2,22 +2,29 @@ package environment
 
 import (
 	"fmt"
-	"github.com/magiconair/properties"
+	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
+
+	"github.com/magiconair/properties"
 )
 
 const (
 	defaultResourcePath = "res"
-	Extension           = "properties"
+	defaultExtension    = "properties"
+	defaultProfile      = "default"
+	propertiesTagKey    = "properties"
+	defaultTagKey       = "default"
+	legacyDefaultPrefix = "default="
 )
 
 var (
 	sliceRegex    *regexp.Regexp = regexp.MustCompile(`,\s*`)
 	defaultOption Option         = Option{
 		ResPath:        defaultResourcePath,
-		Profiles:       []string{},
+		Profiles:       []string{defaultProfile},
 		Configurations: make([]interface{}, 0),
 	}
 )
@@ -83,15 +90,17 @@ func new(opt *Option) *Environment {
 		}
 		sources[profile] = source
 	}
+	applyConfigurationDefaults(rootPropertySource.resource, opt.Configurations)
 	prop := properties.LoadMap(rootPropertySource.resource)
 	for _, instance := range opt.Configurations {
 		if err := prop.Decode(instance); err != nil {
 			panic(err)
 		}
 	}
+
 	return &Environment{
 		mu:             sync.RWMutex{},
-		prop:           properties.LoadMap(rootPropertySource.resource),
+		prop:           prop,
 		source:         *rootPropertySource,
 		sources:        sources,
 		configurations: opt.Configurations,
@@ -201,6 +210,8 @@ func (env *Environment) SetProperty(key string, value string) {
 }
 
 func (env *Environment) Configuration(instance interface{}) (*interface{}, error) {
+	applyConfigurationDefaults(env.source.resource, []interface{}{instance})
+	env.prop = properties.LoadMap(env.source.resource)
 	if err := env.prop.Decode(instance); err != nil {
 		return nil, err
 	}
@@ -212,6 +223,8 @@ func (env *Environment) GetConfigurations() []interface{} {
 }
 
 func (env *Environment) SetConfigurations(configurations []interface{}) {
+	applyConfigurationDefaults(env.source.resource, configurations)
+	env.prop = properties.LoadMap(env.source.resource)
 	for _, instance := range configurations {
 		if err := env.prop.Decode(instance); err != nil {
 			panic(err)
@@ -228,10 +241,90 @@ func mergeMap(m1, m2 map[string]string) map[string]string {
 }
 
 func loadResource(filePath, opt string) map[string]string {
-	path := fmt.Sprintf("%s/%s.%s", filePath, opt, Extension)
+	path := fmt.Sprintf("%s/%s.%s", filePath, opt, defaultExtension)
 	p, err := properties.LoadFile(path, properties.UTF8)
 	if err != nil {
 		return map[string]string{}
 	}
 	return p.Map()
+}
+
+func applyConfigurationDefaults(resource map[string]string, configurations []interface{}) {
+	for _, configuration := range configurations {
+		applyStructDefaults(resource, reflect.TypeOf(configuration))
+	}
+}
+
+func applyStructDefaults(resource map[string]string, t reflect.Type) {
+	if t == nil {
+		return
+	}
+
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	if t.Kind() != reflect.Struct {
+		return
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+
+		fieldType := field.Type
+		resolvedFieldType := fieldType
+		for resolvedFieldType.Kind() == reflect.Ptr {
+			resolvedFieldType = resolvedFieldType.Elem()
+		}
+
+		if resolvedFieldType.Kind() == reflect.Struct {
+			applyStructDefaults(resource, fieldType)
+		}
+
+		key, defaultValue := parsePropertyTags(field)
+		if key == "" || defaultValue == nil {
+			continue
+		}
+		if _, exists := resource[key]; exists {
+			continue
+		}
+
+		resource[key] = *defaultValue
+	}
+}
+
+func parsePropertyTags(field reflect.StructField) (string, *string) {
+	tag := field.Tag.Get(propertiesTagKey)
+	if tag == "" {
+		return "", nil
+	}
+
+	parts := strings.Split(tag, ",")
+	key := strings.TrimSpace(parts[0])
+	if key == "" {
+		return "", nil
+	}
+
+	if defaultTag, ok := field.Tag.Lookup(defaultTagKey); ok {
+		return key, &defaultTag
+	}
+
+	return key, parseLegacyDefaultTag(parts[1:])
+}
+
+// parseLegacyDefaultTag는 기존 `properties:"key,default=value"` 형식과의 하위 호환을 위해 유지합니다.
+// Deprecated: 새 코드는 `properties:"key" default:"value"` 형식을 사용해야 합니다.
+func parseLegacyDefaultTag(parts []string) *string {
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(part, legacyDefaultPrefix) {
+			value := strings.TrimPrefix(part, legacyDefaultPrefix)
+			return &value
+		}
+	}
+
+	return nil
 }

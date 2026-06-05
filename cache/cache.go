@@ -5,13 +5,7 @@ type Cache[T any] interface {
 	Get(keys ...any) (T, bool)
 	Put(keys []any, value T)
 	Delete(keys ...any)
-
 	Stat() *CacheStat
-}
-
-type Item[T any] interface {
-	Key() string
-	Value() T
 }
 
 type CacheStat struct {

@@ -28,20 +28,20 @@ func GetRequiredPropertySlice(key string) ([]string, error) {
 	return std.GetRequiredPropertySlice(key)
 }
 
-func GetProperty(key string, value string) string {
-	return std.GetProperty(key, value)
+func GetProperty(key string, defaultValue string) string {
+	return std.GetProperty(key, defaultValue)
 }
 
-func GetPropertyInt(key string, value int) int {
-	return std.GetPropertyInt(key, value)
+func GetPropertyInt(key string, defaultValue int) int {
+	return std.GetPropertyInt(key, defaultValue)
 }
 
-func GetPropertyBool(key string, value bool) bool {
-	return std.GetPropertyBool(key, value)
+func GetPropertyBool(key string, defaultValue bool) bool {
+	return std.GetPropertyBool(key, defaultValue)
 }
 
-func GetPropertySlice(key string, value []string) []string {
-	return std.GetPropertySlice(key, value)
+func GetPropertySlice(key string, defaultValue []string) []string {
+	return std.GetPropertySlice(key, defaultValue)
 }
 
 func Configuration(instance interface{}) (*interface{}, error) {
